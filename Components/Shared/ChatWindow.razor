@@ -1,0 +1,71 @@
+@using blazorchat.Models
+
+<div class="chat-window">
+    <div class="chat-header">
+        <h3>BlazorChat</h3>
+        <span class="online-count">@OnlineUsers.Count online</span>
+    </div>
+
+    <div class="chat-main">
+        <div class="sidebar">
+            <UserList Users="OnlineUsers" />
+        </div>
+
+        <div class="chat-content">
+            <div class="messages-container" id="messagesContainer">
+                @if (Messages.Count == 0)
+                {
+                    <div class="no-messages">
+                        <p>No messages yet. Start the conversation!</p>
+                    </div>
+                }
+                else
+                {
+                    string? lastUser = null;
+                    DateTime? lastTime = null;
+
+                    @foreach (var message in Messages)
+                    {
+                        bool isGrouped = lastUser == message.User && 
+                                       lastTime.HasValue && 
+                                       (message.Timestamp - lastTime.Value).TotalMinutes < 1;
+
+                        <MessageBubble 
+                            Message="message" 
+                            IsCurrentUser="@(message.User == CurrentUser)"
+                            IsGrouped="isGrouped" />
+
+                        lastUser = message.User;
+                        lastTime = message.Timestamp;
+                    }
+                }
+
+                @if (!string.IsNullOrEmpty(TypingUser))
+                {
+                    <div class="typing-indicator">
+                        <span>@TypingUser is typing...</span>
+                    </div>
+                }
+            </div>
+
+            <MessageInput 
+                OnSendMessage="OnSendMessage"
+                OnSendImage="OnSendImage"
+                OnSendVoice="OnSendVoice"
+                OnSendFile="OnSendFile"
+                OnTyping="OnTyping" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<ChatMessage> Messages { get; set; } = new();
+    [Parameter] public string CurrentUser { get; set; } = "";
+    [Parameter] public List<User> OnlineUsers { get; set; } = new();
+    [Parameter] public string TypingUser { get; set; } = "";
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
+    [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
+    [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
+    [Parameter] public EventCallback OnTyping { get; set; }
+}

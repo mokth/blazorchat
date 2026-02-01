@@ -1,0 +1,129 @@
+.message-bubble {
+    max-width: 65%;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-bubble.grouped {
+    margin-top: -8px;
+}
+
+.message-bubble.sent {
+    background-color: #DCF8C6;
+    margin-left: auto;
+    border-bottom-right-radius: 2px;
+}
+
+.message-bubble.received {
+    background-color: white;
+    margin-right: auto;
+    border-bottom-left-radius: 2px;
+}
+
+.message-header {
+    margin-bottom: 4px;
+}
+
+.message-user {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #075E54;
+}
+
+.message-content {
+    word-wrap: break-word;
+}
+
+.message-content p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.message-image img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    display: block;
+}
+
+.message-voice audio {
+    width: 100%;
+    max-width: 250px;
+    height: 32px;
+}
+
+.voice-duration {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 4px;
+}
+
+.message-file {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 6px;
+}
+
+.file-icon {
+    font-size: 2rem;
+    margin-right: 12px;
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 600;
+    color: #075E54;
+    text-decoration: none;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.file-name:hover {
+    text-decoration: underline;
+}
+
+.file-action {
+    font-size: 0.8rem;
+    color: #666;
+    margin: 0;
+}
+
+.message-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 4px;
+    gap: 4px;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    color: #666;
+}
+
+.message-status {
+    font-size: 0.8rem;
+    color: #4FC3F7;
+}

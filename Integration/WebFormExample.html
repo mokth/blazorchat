@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebForm Integration Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #075E54;
+        }
+        .btn {
+            background-color: #075E54;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #128C7E;
+        }
+        .info {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        code {
+            background: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BlazorChat WebForm Integration Example</h1>
+        
+        <div class="info">
+            <h3>User Information (simulated WebForm session)</h3>
+            <p>User ID: <code id="userId">user_12345</code></p>
+            <p>User Name: <code id="userName">John Doe</code></p>
+        </div>
+
+        <h3>Open Chat Methods:</h3>
+        
+        <button class="btn" onclick="openChatPopup()">
+            Open Chat Popup (Direct)
+        </button>
+        
+        <button class="btn" onclick="openChatWithWrapper()">
+            Open Chat Popup (With Wrapper)
+        </button>
+        
+        <button class="btn" onclick="openChatModal()">
+            Open Chat Modal (Iframe)
+        </button>
+
+        <div class="info">
+            <h3>Integration Instructions:</h3>
+            <ol>
+                <li>Ensure your Blazor Chat app is running (default: http://localhost:5000)</li>
+                <li>Update the <code>chatUrl</code> in the configuration below if needed</li>
+                <li>Click one of the buttons above to test the integration</li>
+            </ol>
+            
+            <h4>For ASP.NET WebForm 4.8:</h4>
+            <pre><code>&lt;script src="Integration/webform-integration.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  // Configure your Blazor Chat URL
+  BlazorChatIntegration.configure({
+    chatUrl: 'http://localhost:5000'
+  });
+
+  function openChat() {
+    var userId = '&lt;%= Session["UserId"] %&gt;';
+    var userName = '&lt;%= Session["UserName"] %&gt;';
+    BlazorChatIntegration.openChatPopup(userId, userName);
+  }
+&lt;/script&gt;
+&lt;asp:Button ID="btnOpenChat" runat="server" 
+            Text="Open Chat" 
+            OnClientClick="openChat(); return false;" /&gt;</code></pre>
+        </div>
+    </div>
+
+    <!-- Include the integration script -->
+    <script src="webform-integration.js"></script>
+    
+    <script>
+        // Configure the chat URL (update this to your Blazor app URL)
+        BlazorChatIntegration.configure({
+            chatUrl: 'http://localhost:5000'
+        });
+
+        // Example functions
+        function openChatPopup() {
+            var userId = document.getElementById('userId').textContent;
+            var userName = document.getElementById('userName').textContent;
+            BlazorChatIntegration.openChatPopup(userId, userName);
+        }
+
+        function openChatWithWrapper() {
+            var userId = document.getElementById('userId').textContent;
+            var userName = document.getElementById('userName').textContent;
+            BlazorChatIntegration.openChatPopupWithWrapper(userId, userName);
+        }
+
+        function openChatModal() {
+            var userId = document.getElementById('userId').textContent;
+            var userName = document.getElementById('userName').textContent;
+            BlazorChatIntegration.openChatModal(userId, userName);
+        }
+    </script>
+</body>
+</html>
