@@ -1,0 +1,86 @@
+@inject IJSRuntime JS
+
+<div class="voice-recorder">
+    @if (isRecording)
+    {
+        <div class="recording-indicator">
+            <span class="recording-dot"></span>
+            <span>Recording... @recordingDuration s</span>
+            <button @onclick="StopRecording" class="btn btn-danger">Stop</button>
+        </div>
+    }
+    else
+    {
+        <button @onclick="StartRecording" class="btn btn-primary">
+            🎤 Record Voice Message
+        </button>
+    }
+    
+    @if (hasRecording && !isRecording)
+    {
+        <div class="recording-preview">
+            <audio controls src="@audioUrl"></audio>
+            <button @onclick="SendRecording" class="btn btn-success">Send</button>
+            <button @onclick="CancelRecording" class="btn btn-secondary">Cancel</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
+
+    private bool isRecording = false;
+    private bool hasRecording = false;
+    private int recordingDuration = 0;
+    private string? audioUrl;
+    private string? audioData;
+
+    private async Task StartRecording()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("startVoiceRecording");
+            isRecording = true;
+            recordingDuration = 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting recording: {ex.Message}");
+        }
+    }
+
+    private async Task StopRecording()
+    {
+        try
+        {
+            var result = await JS.InvokeAsync<VoiceRecordingResult>("stopVoiceRecording");
+            isRecording = false;
+            hasRecording = true;
+            audioData = result.AudioData;
+            audioUrl = result.AudioUrl;
+            recordingDuration = result.Duration;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error stopping recording: {ex.Message}");
+            isRecording = false;
+        }
+    }
+
+    private async Task SendRecording()
+    {
+        if (!string.IsNullOrEmpty(audioData))
+        {
+            await OnSendVoice.InvokeAsync((audioData, recordingDuration));
+            CancelRecording();
+        }
+    }
+
+    private void CancelRecording()
+    {
+        hasRecording = false;
+        audioData = null;
+        audioUrl = null;
+        recordingDuration = 0;
+    }
+}

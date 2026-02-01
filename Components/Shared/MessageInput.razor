@@ -1,0 +1,150 @@
+@inject IJSRuntime JS
+
+<div class="message-input-container">
+    <div class="input-actions">
+        <InputFile OnChange="HandleImageUpload" accept="image/*" style="display: none;" id="imageUpload" />
+        <label for="imageUpload" class="action-button" title="Upload Image">
+            <span>🖼️</span>
+        </label>
+        
+        <InputFile OnChange="HandleFileUpload" style="display: none;" id="fileUpload" />
+        <label for="fileUpload" class="action-button" title="Upload File">
+            <span>📎</span>
+        </label>
+        
+        <button class="action-button" @onclick="ToggleVoiceRecording" title="@(isRecording ? "Stop Recording" : "Voice Message")">
+            <span>@(isRecording ? "⏹️" : "🎤")</span>
+        </button>
+    </div>
+    
+    <div class="text-input-wrapper">
+        <input 
+            type="text" 
+            @bind="messageText" 
+            @bind:event="oninput"
+            @onkeypress="HandleKeyPress"
+            placeholder="Type a message..."
+            class="message-input" 
+            disabled="@isRecording" />
+    </div>
+    
+    <button class="send-button" @onclick="SendMessageAsync" disabled="@(!CanSend)">
+        <span>📤</span>
+    </button>
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
+    [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
+    [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
+    [Parameter] public EventCallback OnTyping { get; set; }
+
+    private string messageText = string.Empty;
+    private bool isRecording = false;
+    private bool CanSend => !string.IsNullOrWhiteSpace(messageText) && !isRecording;
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && CanSend)
+        {
+            await SendMessageAsync();
+        }
+    }
+
+    private async Task HandleTyping()
+    {
+        await OnTyping.InvokeAsync();
+    }
+
+    private async Task SendMessageAsync()
+    {
+        if (CanSend)
+        {
+            await OnSendMessage.InvokeAsync(messageText);
+            messageText = string.Empty;
+        }
+    }
+
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            try
+            {
+                var buffer = new byte[file.Size];
+                await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).ReadAsync(buffer);
+                var imageData = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+                await OnSendImage.InvokeAsync((imageData, file.Name));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error uploading image: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            try
+            {
+                var buffer = new byte[file.Size];
+                await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).ReadAsync(buffer);
+                var fileData = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+                await OnSendFile.InvokeAsync((fileData, file.Name));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error uploading file: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task ToggleVoiceRecording()
+    {
+        if (!isRecording)
+        {
+            await StartRecording();
+        }
+        else
+        {
+            await StopRecording();
+        }
+    }
+
+    private async Task StartRecording()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("startVoiceRecording");
+            isRecording = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting recording: {ex.Message}");
+        }
+    }
+
+    private async Task StopRecording()
+    {
+        try
+        {
+            var result = await JS.InvokeAsync<VoiceRecordingResult>("stopVoiceRecording");
+            isRecording = false;
+            
+            if (!string.IsNullOrEmpty(result.AudioData))
+            {
+                await OnSendVoice.InvokeAsync((result.AudioData, result.Duration));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error stopping recording: {ex.Message}");
+            isRecording = false;
+        }
+    }
+}

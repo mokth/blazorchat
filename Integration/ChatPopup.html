@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="chatFrame" src=""></iframe>
+    
+    <script>
+        // Get user info from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId') || '';
+        const userName = urlParams.get('userName') || '';
+        
+        // Construct the Blazor chat URL
+        // Update this URL to match your Blazor app's URL
+        const blazorAppUrl = window.location.origin;
+        const chatUrl = `${blazorAppUrl}/chat?userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(userName)}`;
+        
+        // Set iframe source
+        document.getElementById('chatFrame').src = chatUrl;
+    </script>
+</body>
+</html>

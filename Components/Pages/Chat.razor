@@ -1,0 +1,204 @@
+@page "/"
+@page "/chat"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using Microsoft.AspNetCore.SignalR.Client
+@using blazorchat.Models
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<PageTitle>Blazor Chat</PageTitle>
+
+<div class="chat-container">
+    @if (!isConnected)
+    {
+        <div class="login-container">
+            <div class="login-box">
+                <h2>Welcome to Blazor Chat</h2>
+                <input @bind="userName" @bind:event="oninput" placeholder="Enter your name" class="form-control" @onkeypress="HandleKeyPress" />
+                <button @onclick="ConnectToChat" disabled="@(!IsValid)" class="btn btn-primary">Join Chat</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <ChatWindow 
+            Messages="@messages" 
+            OnlineUsers="@onlineUsers" 
+            CurrentUserId="@userId"
+            CurrentUserName="@userName"
+            OnSendMessage="@HandleSendMessage"
+            OnSendImage="@HandleSendImage"
+            OnSendVoice="@HandleSendVoice"
+            OnSendFile="@HandleSendFile"
+            OnTyping="@HandleTyping"
+            TypingUser="@typingUser" />
+    }
+</div>
+
+@code {
+    private HubConnection? hubConnection;
+    private List<ChatMessage> messages = new();
+    private List<User> onlineUsers = new();
+    private string userName = string.Empty;
+    private string userId = string.Empty;
+    private bool isConnected = false;
+    private string? typingUser;
+    private System.Threading.Timer? typingTimer;
+
+    private bool IsValid => !string.IsNullOrWhiteSpace(userName);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get user info from query parameters (for WebForm integration)
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        var userIdParam = query["userId"];
+        var userNameParam = query["userName"];
+
+        if (!string.IsNullOrEmpty(userIdParam) && !string.IsNullOrEmpty(userNameParam))
+        {
+            userName = userNameParam;
+            await ConnectToChat();
+        }
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/chathub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
+        {
+            messages.Add(message);
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<List<ChatMessage>>("LoadMessages", (loadedMessages) =>
+        {
+            messages = loadedMessages;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<User>("UserConnected", (user) =>
+        {
+            if (!onlineUsers.Any(u => u.Id == user.Id))
+            {
+                onlineUsers.Add(user);
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<User>("UserDisconnected", (user) =>
+        {
+            var existingUser = onlineUsers.FirstOrDefault(u => u.Id == user.Id);
+            if (existingUser != null)
+            {
+                onlineUsers.Remove(existingUser);
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<List<User>>("UpdateUserList", (users) =>
+        {
+            onlineUsers = users;
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<string>("UserTyping", (user) =>
+        {
+            typingUser = user;
+            InvokeAsync(StateHasChanged);
+            
+            typingTimer?.Dispose();
+            typingTimer = new System.Threading.Timer(_ =>
+            {
+                typingUser = null;
+                InvokeAsync(StateHasChanged);
+            }, null, 3000, Timeout.Infinite);
+        });
+
+        hubConnection.On<string>("ReceiveError", (error) =>
+        {
+            Console.WriteLine($"Error: {error}");
+        });
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && IsValid)
+        {
+            await ConnectToChat();
+        }
+    }
+
+    private async Task ConnectToChat()
+    {
+        if (!IsValid || hubConnection == null)
+            return;
+
+        try
+        {
+            if (hubConnection.State == HubConnectionState.Disconnected)
+            {
+                await hubConnection.StartAsync();
+            }
+
+            userId = hubConnection.ConnectionId ?? Guid.NewGuid().ToString();
+            await hubConnection.SendAsync("UserConnected", userId, userName);
+            isConnected = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error connecting: {ex.Message}");
+        }
+    }
+
+    private async Task HandleSendMessage(string message)
+    {
+        if (hubConnection != null && !string.IsNullOrWhiteSpace(message))
+        {
+            await hubConnection.SendAsync("SendMessage", userId, userName, message);
+        }
+    }
+
+    private async Task HandleSendImage((string imageData, string fileName) data)
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.SendAsync("SendImage", userId, userName, data.imageData, data.fileName);
+        }
+    }
+
+    private async Task HandleSendVoice((string audioData, int duration) data)
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.SendAsync("SendVoiceMessage", userId, userName, data.audioData, data.duration);
+        }
+    }
+
+    private async Task HandleSendFile((string fileData, string fileName) data)
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.SendAsync("SendFile", userId, userName, data.fileData, data.fileName);
+        }
+    }
+
+    private async Task HandleTyping()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.SendAsync("UserTyping", userName);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        typingTimer?.Dispose();
+        if (hubConnection != null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
