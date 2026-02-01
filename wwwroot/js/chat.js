@@ -1,5 +1,3 @@
-// Chat JavaScript utilities
-
 // Auto-scroll to bottom of messages
 function scrollToBottom() {
     const container = document.getElementById('messagesContainer');
@@ -47,18 +45,4 @@ window.readFileAsBase64 = async (inputElement) => {
         
         reader.readAsDataURL(file);
     });
-};
-
-// File upload helper
-window.uploadFile = (inputElement, callback) => {
-    if (inputElement && inputElement.files && inputElement.files.length > 0) {
-        const file = inputElement.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            callback(e.target.result, file.name);
-        };
-        
-        reader.readAsDataURL(file);
-    }
 };

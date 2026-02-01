@@ -18,9 +18,22 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowWebForms", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        // Configure allowed origins for your WebForm application
+        // Replace with your actual WebForm URL in production
+        policy.SetIsOriginAllowed(origin =>
+        {
+            // Allow localhost for development
+            if (origin.StartsWith("http://localhost") || origin.StartsWith("https://localhost"))
+                return true;
+            
+            // Add your production WebForm URLs here
+            // return origin == "https://your-webform-app.com";
+            
+            return false;
+        })
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials(); // Required for SignalR
     });
 });
 

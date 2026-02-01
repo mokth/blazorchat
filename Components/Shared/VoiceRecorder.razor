@@ -53,7 +53,7 @@
     {
         try
         {
-            var result = await JS.InvokeAsync<RecordingResult>("stopVoiceRecording");
+            var result = await JS.InvokeAsync<VoiceRecordingResult>("stopVoiceRecording");
             isRecording = false;
             hasRecording = true;
             audioData = result.AudioData;
@@ -82,12 +82,5 @@
         audioData = null;
         audioUrl = null;
         recordingDuration = 0;
-    }
-
-    public class RecordingResult
-    {
-        public string AudioData { get; set; } = string.Empty;
-        public string AudioUrl { get; set; } = string.Empty;
-        public int Duration { get; set; }
     }
 }

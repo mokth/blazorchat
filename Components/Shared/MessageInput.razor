@@ -2,13 +2,13 @@
 
 <div class="message-input-container">
     <div class="input-actions">
-        <label class="action-button" title="Upload Image">
-            <input type="file" accept="image/*" @onchange="HandleImageUpload" style="display: none;" />
+        <InputFile OnChange="HandleImageUpload" accept="image/*" style="display: none;" id="imageUpload" />
+        <label for="imageUpload" class="action-button" title="Upload Image">
             <span>🖼️</span>
         </label>
         
-        <label class="action-button" title="Upload File">
-            <input type="file" @onchange="HandleFileUpload" style="display: none;" />
+        <InputFile OnChange="HandleFileUpload" style="display: none;" id="fileUpload" />
+        <label for="fileUpload" class="action-button" title="Upload File">
             <span>📎</span>
         </label>
         
@@ -66,16 +66,17 @@
         }
     }
 
-    private async Task HandleImageUpload(ChangeEventArgs e)
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
-        var file = e.Value?.ToString();
-        if (!string.IsNullOrEmpty(file))
+        var file = e.File;
+        if (file != null)
         {
             try
             {
-                var imageData = await JS.InvokeAsync<string>("readFileAsBase64", file);
-                var fileName = Path.GetFileName(file);
-                await OnSendImage.InvokeAsync((imageData, fileName));
+                var buffer = new byte[file.Size];
+                await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).ReadAsync(buffer);
+                var imageData = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+                await OnSendImage.InvokeAsync((imageData, file.Name));
             }
             catch (Exception ex)
             {
@@ -84,16 +85,17 @@
         }
     }
 
-    private async Task HandleFileUpload(ChangeEventArgs e)
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
     {
-        var file = e.Value?.ToString();
-        if (!string.IsNullOrEmpty(file))
+        var file = e.File;
+        if (file != null)
         {
             try
             {
-                var fileData = await JS.InvokeAsync<string>("readFileAsBase64", file);
-                var fileName = Path.GetFileName(file);
-                await OnSendFile.InvokeAsync((fileData, fileName));
+                var buffer = new byte[file.Size];
+                await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).ReadAsync(buffer);
+                var fileData = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+                await OnSendFile.InvokeAsync((fileData, file.Name));
             }
             catch (Exception ex)
             {
@@ -144,11 +146,5 @@
             Console.WriteLine($"Error stopping recording: {ex.Message}");
             isRecording = false;
         }
-    }
-
-    public class VoiceRecordingResult
-    {
-        public string AudioData { get; set; } = string.Empty;
-        public int Duration { get; set; }
     }
 }
