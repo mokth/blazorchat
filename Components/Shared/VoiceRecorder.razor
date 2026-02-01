@@ -1,0 +1,54 @@
+@* This component can be used for future enhancements *@
+<div class="voice-recorder">
+    <button class="record-button" @onclick="ToggleRecording">
+        @if (IsRecording)
+        {
+            <span>⏹️ Stop Recording</span>
+        }
+        else
+        {
+            <span>🎤 Start Recording</span>
+        }
+    </button>
+
+    @if (IsRecording)
+    {
+        <div class="recording-info">
+            <span class="recording-indicator">●</span>
+            <span>Recording: @Duration seconds</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<(string audioData, int duration)> OnRecordingComplete { get; set; }
+
+    private bool IsRecording { get; set; } = false;
+    private int Duration { get; set; } = 0;
+
+    private async Task ToggleRecording()
+    {
+        if (!IsRecording)
+        {
+            await StartRecording();
+        }
+        else
+        {
+            await StopRecording();
+        }
+    }
+
+    private Task StartRecording()
+    {
+        IsRecording = true;
+        Duration = 0;
+        return Task.CompletedTask;
+    }
+
+    private Task StopRecording()
+    {
+        IsRecording = false;
+        return Task.CompletedTask;
+    }
+}

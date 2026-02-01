@@ -1,0 +1,51 @@
+.chat-window {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #E5DDD5;
+}
+
+.chat-header {
+    background-color: #075E54;
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chat-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.header-info {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" opacity="0.05"><text x="50" y="50" font-size="300" fill="%23000">💬</text></svg>');
+    background-repeat: repeat;
+}
+
+.no-messages {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.typing-indicator {
+    padding: 10px;
+    color: #666;
+    font-style: italic;
+    font-size: 0.9rem;
+}
