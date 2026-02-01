@@ -1,0 +1,64 @@
+@using blazorchat.Models
+
+<div class="chat-window">
+    <div class="chat-header">
+        <h3>Blazor Chat</h3>
+        <span class="online-count">@OnlineUsers.Count online</span>
+    </div>
+    
+    <div class="chat-body">
+        <div class="user-list-panel">
+            <UserList Users="@OnlineUsers" />
+        </div>
+        
+        <div class="messages-panel">
+            <div class="messages-container" id="messagesContainer">
+                @foreach (var message in Messages)
+                {
+                    <MessageBubble 
+                        Message="@message" 
+                        IsOwnMessage="@(message.UserId == CurrentUserId)" />
+                }
+                @if (!string.IsNullOrEmpty(TypingUser))
+                {
+                    <div class="typing-indicator">
+                        <span>@TypingUser is typing...</span>
+                    </div>
+                }
+            </div>
+            
+            <MessageInput 
+                OnSendMessage="@OnSendMessage"
+                OnSendImage="@OnSendImage"
+                OnSendVoice="@OnSendVoice"
+                OnSendFile="@OnSendFile"
+                OnTyping="@OnTyping" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<ChatMessage> Messages { get; set; } = new();
+    [Parameter] public List<User> OnlineUsers { get; set; } = new();
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public string CurrentUserName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
+    [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
+    [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
+    [Parameter] public EventCallback OnTyping { get; set; }
+    [Parameter] public string? TypingUser { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Messages.Any())
+        {
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        // Scroll logic will be handled by JavaScript
+    }
+}

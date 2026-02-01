@@ -1,0 +1,46 @@
+@using blazorchat.Models
+
+<div class="message-bubble @(IsOwnMessage ? "own-message" : "other-message")">
+    <div class="message-header">
+        <span class="user-name">@Message.UserName</span>
+        <span class="message-time">@Message.Timestamp.ToString("HH:mm")</span>
+    </div>
+    
+    <div class="message-content">
+        @if (Message.Type == MessageType.Text)
+        {
+            <p>@Message.Content</p>
+        }
+        else if (Message.Type == MessageType.Image)
+        {
+            <div class="image-message">
+                <img src="@Message.FileUrl" alt="@Message.FileName" />
+            </div>
+        }
+        else if (Message.Type == MessageType.Voice)
+        {
+            <div class="voice-message">
+                <audio controls>
+                    <source src="@Message.FileUrl" type="audio/webm">
+                    <source src="@Message.FileUrl" type="audio/ogg">
+                    Your browser does not support the audio element.
+                </audio>
+                <span class="voice-duration">@(Message.Duration)s</span>
+            </div>
+        }
+        else if (Message.Type == MessageType.File)
+        {
+            <div class="file-message">
+                <a href="@Message.FileUrl" download="@Message.FileName" target="_blank">
+                    <span class="file-icon">📎</span>
+                    <span class="file-name">@Message.FileName</span>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public ChatMessage Message { get; set; } = new();
+    [Parameter] public bool IsOwnMessage { get; set; }
+}
