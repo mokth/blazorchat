@@ -31,11 +31,11 @@
             <ChatWindow 
                 Messages="_messages" 
                 CurrentUser="_userName" 
-                OnSendMessage="SendTextMessage"
-                OnSendImage="SendImage"
-                OnSendVoice="SendVoice"
-                OnSendFile="SendFile"
-                OnTyping="NotifyTyping"
+                OnSendMessage="HandleSendMessage"
+                OnSendImage="HandleSendImage"
+                OnSendVoice="HandleSendVoice"
+                OnSendFile="HandleSendFile"
+                OnTyping="HandleTyping"
                 TypingUsers="_typingUsers" />
         </div>
     }
@@ -50,7 +50,6 @@
     private string _errorMessage = string.Empty;
     private bool _isConnected = false;
     private bool _isConnecting = false;
-    private System.Timers.Timer? _typingTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,13 +214,18 @@
         }
     }
 
+    // EventCallback handlers to match the expected signatures
+    private async Task HandleSendMessage(string message) => await SendTextMessage(message);
+    private async Task HandleSendImage((string imageData, string fileName) data) => await SendImage(data.imageData, data.fileName);
+    private async Task HandleSendVoice((string audioData, int duration) data) => await SendVoice(data.audioData, data.duration);
+    private async Task HandleSendFile((string fileData, string fileName) data) => await SendFile(data.fileData, data.fileName);
+    private async Task HandleTyping() => await NotifyTyping();
+
     public async ValueTask DisposeAsync()
     {
         if (_hubConnection != null)
         {
             await _hubConnection.DisposeAsync();
         }
-
-        _typingTimer?.Dispose();
     }
 }

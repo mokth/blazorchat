@@ -21,8 +21,7 @@
             placeholder="Type a message..." 
             @bind="messageText" 
             @bind:event="oninput"
-            @onkeypress="HandleKeyPress"
-            @oninput="HandleTyping" />
+            @onkeypress="HandleKeyPress" />
         <button class="send-button" @onclick="SendMessage" disabled="@string.IsNullOrWhiteSpace(messageText)">
             ➤
         </button>
@@ -59,6 +58,7 @@
     private bool isRecording = false;
     private int recordingDuration = 0;
     private System.Timers.Timer? recordingTimer;
+    private System.Timers.Timer? typingNotificationTimer;
 
     private async Task SendMessage()
     {
@@ -75,11 +75,30 @@
         {
             await SendMessage();
         }
+        else
+        {
+            await HandleTyping();
+        }
     }
 
     private async Task HandleTyping()
     {
-        await OnTyping.InvokeAsync();
+        // Debounce typing notifications
+        if (typingNotificationTimer != null)
+        {
+            typingNotificationTimer.Stop();
+            typingNotificationTimer.Dispose();
+        }
+
+        typingNotificationTimer = new System.Timers.Timer(1000);
+        typingNotificationTimer.Elapsed += async (sender, e) =>
+        {
+            await OnTyping.InvokeAsync();
+            typingNotificationTimer?.Dispose();
+            typingNotificationTimer = null;
+        };
+        typingNotificationTimer.AutoReset = false;
+        typingNotificationTimer.Start();
     }
 
     private async Task TriggerImageUpload()
