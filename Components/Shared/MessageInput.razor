@@ -1,0 +1,165 @@
+@inject IJSRuntime JSRuntime
+
+<div class="message-input-container">
+    <div class="input-actions">
+        <button class="btn-icon" @onclick="HandleImageUpload" title="Send image">
+            📷
+        </button>
+        <button class="btn-icon" @onclick="ToggleVoiceRecorder" title="Record voice">
+            @if (isRecording)
+            {
+                <span>⏹️</span>
+            }
+            else
+            {
+                <span>🎤</span>
+            }
+        </button>
+        <button class="btn-icon" @onclick="HandleFileUpload" title="Attach file">
+            📎
+        </button>
+    </div>
+
+    <input type="file" @ref="imageInputRef" style="display:none" accept="image/*" @onchange="OnImageSelected" />
+    <input type="file" @ref="fileInputRef" style="display:none" @onchange="OnFileSelected" />
+
+    @if (isRecording)
+    {
+        <div class="recording-indicator">
+            <span class="recording-dot"></span>
+            Recording... @recordingDuration s
+        </div>
+    }
+    else
+    {
+        <input type="text" 
+               class="message-input" 
+               placeholder="Type a message..." 
+               @bind="currentMessage" 
+               @bind:event="oninput"
+               @onkeydown="HandleKeyDown" />
+    }
+
+    <button class="btn-send" @onclick="SendCurrentMessage" disabled="@(string.IsNullOrWhiteSpace(currentMessage) && !isRecording)">
+        ➤
+    </button>
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+    [Parameter] public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
+    [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
+    [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
+    [Parameter] public EventCallback OnTyping { get; set; }
+
+    private string currentMessage = "";
+    private ElementReference imageInputRef;
+    private ElementReference fileInputRef;
+    private bool isRecording = false;
+    private int recordingDuration = 0;
+    private System.Threading.Timer? recordingTimer;
+
+    private async Task SendCurrentMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(currentMessage))
+        {
+            await OnSendMessage.InvokeAsync(currentMessage);
+            currentMessage = "";
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendCurrentMessage();
+        }
+        else
+        {
+            // Trigger typing indicator on any key press
+            await OnTyping.InvokeAsync();
+        }
+    }
+
+    private async Task HandleImageUpload()
+    {
+        await JSRuntime.InvokeVoidAsync("triggerFileInput", imageInputRef);
+    }
+
+    private async Task HandleFileUpload()
+    {
+        await JSRuntime.InvokeVoidAsync("triggerFileInput", fileInputRef);
+    }
+
+    private async Task OnImageSelected(ChangeEventArgs e)
+    {
+        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", imageInputRef);
+        if (!string.IsNullOrEmpty(files))
+        {
+            var parts = files.Split('|');
+            if (parts.Length == 2)
+            {
+                await OnSendImage.InvokeAsync((parts[0], parts[1]));
+            }
+        }
+    }
+
+    private async Task OnFileSelected(ChangeEventArgs e)
+    {
+        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", fileInputRef);
+        if (!string.IsNullOrEmpty(files))
+        {
+            var parts = files.Split('|');
+            if (parts.Length == 2)
+            {
+                await OnSendFile.InvokeAsync((parts[0], parts[1]));
+            }
+        }
+    }
+
+    private async Task ToggleVoiceRecorder()
+    {
+        if (!isRecording)
+        {
+            await StartRecording();
+        }
+        else
+        {
+            await StopRecording();
+        }
+    }
+
+    private async Task StartRecording()
+    {
+        isRecording = true;
+        recordingDuration = 0;
+        
+        recordingTimer = new System.Threading.Timer(_ =>
+        {
+            recordingDuration++;
+            InvokeAsync(StateHasChanged);
+            
+            // Auto-stop after 2 minutes
+            if (recordingDuration >= 120)
+            {
+                InvokeAsync(StopRecording);
+            }
+        }, null, 1000, 1000);
+
+        await JSRuntime.InvokeVoidAsync("startVoiceRecording");
+    }
+
+    private async Task StopRecording()
+    {
+        isRecording = false;
+        recordingTimer?.Dispose();
+        
+        var audioData = await JSRuntime.InvokeAsync<string>("stopVoiceRecording");
+        if (!string.IsNullOrEmpty(audioData))
+        {
+            await OnSendVoice.InvokeAsync((audioData, recordingDuration));
+        }
+        
+        recordingDuration = 0;
+    }
+}

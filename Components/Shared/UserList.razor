@@ -1,0 +1,27 @@
+@using blazorchat.Models
+
+<div class="user-list">
+    <h4>Online Users (@Users.Count)</h4>
+    <div class="users">
+        @foreach (var user in Users)
+        {
+            <div class="user-item">
+                <div class="user-avatar">
+                    @user.Name.Substring(0, 1).ToUpper()
+                </div>
+                <div class="user-info">
+                    <span class="user-name">@user.Name</span>
+                    <span class="user-status">@(user.IsOnline ? "Online" : "Offline")</span>
+                </div>
+                @if (user.IsOnline)
+                {
+                    <div class="online-indicator"></div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<User> Users { get; set; } = new();
+}
