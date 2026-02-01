@@ -17,6 +17,9 @@ public class FileUploadService
     {
         try
         {
+            // Sanitize filename to prevent path traversal attacks
+            fileName = Path.GetFileName(fileName);
+            
             var uploadPath = Path.Combine(_environment.WebRootPath, "uploads");
             
             if (!Directory.Exists(uploadPath))

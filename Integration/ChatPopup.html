@@ -25,7 +25,7 @@
     <script>
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('userId') || 'guest_' + Math.random().toString(36).substr(2, 9);
+        const userId = urlParams.get('userId') || 'guest_' + Math.random().toString(36).substring(2, 11);
         const userName = urlParams.get('userName') || 'Guest';
         const chatUrl = urlParams.get('chatUrl') || 'http://localhost:5000';
 
