@@ -1,6 +1,6 @@
 @page "/"
 @page "/chat"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using Microsoft.AspNetCore.SignalR.Client
 @using blazorchat.Models
 @inject NavigationManager Navigation
@@ -26,11 +26,11 @@
             OnlineUsers="@onlineUsers" 
             CurrentUserId="@userId"
             CurrentUserName="@userName"
-            OnSendMessage="@SendMessage"
-            OnSendImage="@SendImage"
-            OnSendVoice="@SendVoice"
-            OnSendFile="@SendFile"
-            OnTyping="@NotifyTyping"
+            OnSendMessage="@HandleSendMessage"
+            OnSendImage="@HandleSendImage"
+            OnSendVoice="@HandleSendVoice"
+            OnSendFile="@HandleSendFile"
+            OnTyping="@HandleTyping"
             TypingUser="@typingUser" />
     }
 </div>
@@ -153,7 +153,7 @@
         }
     }
 
-    private async Task SendMessage(string message)
+    private async Task HandleSendMessage(string message)
     {
         if (hubConnection != null && !string.IsNullOrWhiteSpace(message))
         {
@@ -161,31 +161,31 @@
         }
     }
 
-    private async Task SendImage(string imageData, string fileName)
+    private async Task HandleSendImage((string imageData, string fileName) data)
     {
         if (hubConnection != null)
         {
-            await hubConnection.SendAsync("SendImage", userId, userName, imageData, fileName);
+            await hubConnection.SendAsync("SendImage", userId, userName, data.imageData, data.fileName);
         }
     }
 
-    private async Task SendVoice(string audioData, int duration)
+    private async Task HandleSendVoice((string audioData, int duration) data)
     {
         if (hubConnection != null)
         {
-            await hubConnection.SendAsync("SendVoiceMessage", userId, userName, audioData, duration);
+            await hubConnection.SendAsync("SendVoiceMessage", userId, userName, data.audioData, data.duration);
         }
     }
 
-    private async Task SendFile(string fileData, string fileName)
+    private async Task HandleSendFile((string fileData, string fileName) data)
     {
         if (hubConnection != null)
         {
-            await hubConnection.SendAsync("SendFile", userId, userName, fileData, fileName);
+            await hubConnection.SendAsync("SendFile", userId, userName, data.fileData, data.fileName);
         }
     }
 
-    private async Task NotifyTyping()
+    private async Task HandleTyping()
     {
         if (hubConnection != null)
         {
