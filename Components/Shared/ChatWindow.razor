@@ -1,0 +1,72 @@
+@using blazorchat.Models
+
+<div class="chat-window">
+    <div class="chat-header">
+        <h2>Blazor Chat</h2>
+        <div class="header-info">
+            <span>@CurrentUser</span>
+        </div>
+    </div>
+
+    <div class="messages-container" id="messagesContainer">
+        @if (Messages.Count == 0)
+        {
+            <div class="no-messages">
+                <p>No messages yet. Start the conversation!</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var message in Messages)
+            {
+                <MessageBubble Message="message" CurrentUser="CurrentUser" />
+            }
+        }
+        
+        @if (TypingUsers.Any())
+        {
+            <div class="typing-indicator">
+                <span>@string.Join(", ", TypingUsers) @(TypingUsers.Count == 1 ? "is" : "are") typing...</span>
+            </div>
+        }
+    </div>
+
+    <MessageInput 
+        OnSendMessage="OnSendMessage"
+        OnSendImage="OnSendImage"
+        OnSendVoice="OnSendVoice"
+        OnSendFile="OnSendFile"
+        OnTyping="OnTyping" />
+</div>
+
+@code {
+    [Parameter]
+    public List<ChatMessage> Messages { get; set; } = new();
+
+    [Parameter]
+    public string CurrentUser { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> OnSendMessage { get; set; }
+
+    [Parameter]
+    public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
+
+    [Parameter]
+    public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
+
+    [Parameter]
+    public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
+
+    [Parameter]
+    public EventCallback OnTyping { get; set; }
+
+    [Parameter]
+    public List<string> TypingUsers { get; set; } = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        // Scroll to bottom is handled by JavaScript in chat.js
+    }
+}

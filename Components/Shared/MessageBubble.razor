@@ -1,0 +1,66 @@
+@using blazorchat.Models
+
+<div class="message-bubble @(Message.User == CurrentUser ? "sent" : "received")">
+    <div class="message-header">
+        <span class="message-user">@Message.User</span>
+        <span class="message-time">@Message.Timestamp.ToString("HH:mm")</span>
+    </div>
+    
+    <div class="message-content">
+        @switch (Message.Type)
+        {
+            case MessageType.Text:
+                <p>@Message.Content</p>
+                break;
+
+            case MessageType.Image:
+                <div class="message-image">
+                    <img src="@Message.Content" alt="@Message.FileName" />
+                    @if (!string.IsNullOrEmpty(Message.FileName))
+                    {
+                        <p class="file-name">@Message.FileName</p>
+                    }
+                </div>
+                break;
+
+            case MessageType.Voice:
+                <div class="message-voice">
+                    <audio controls>
+                        <source src="@Message.Content" type="audio/webm">
+                        <source src="@Message.Content" type="audio/ogg">
+                        Your browser does not support the audio element.
+                    </audio>
+                    @if (Message.Duration.HasValue)
+                    {
+                        <span class="voice-duration">@Message.Duration.Value seconds</span>
+                    }
+                </div>
+                break;
+
+            case MessageType.File:
+                <div class="message-file">
+                    <div class="file-icon">📎</div>
+                    <div class="file-info">
+                        <p class="file-name">@Message.FileName</p>
+                        <a href="@Message.Content" download="@Message.FileName" class="download-link">Download</a>
+                    </div>
+                </div>
+                break;
+        }
+    </div>
+
+    @if (Message.IsRead && Message.User == CurrentUser)
+    {
+        <div class="message-status">
+            <span class="read-status">✓✓</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public ChatMessage Message { get; set; } = new();
+
+    [Parameter]
+    public string CurrentUser { get; set; } = string.Empty;
+}

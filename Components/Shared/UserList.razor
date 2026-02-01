@@ -1,0 +1,39 @@
+@using blazorchat.Models
+
+<div class="user-list">
+    <div class="user-list-header">
+        <h3>Online Users (@Users.Count)</h3>
+    </div>
+    <div class="user-list-items">
+        @foreach (var user in Users)
+        {
+            <div class="user-item @(user.Name == CurrentUser ? "current-user" : "")">
+                <div class="user-avatar">
+                    @if (!string.IsNullOrEmpty(user.AvatarUrl))
+                    {
+                        <img src="@user.AvatarUrl" alt="@user.Name" />
+                    }
+                    else
+                    {
+                        <span>@user.Name.Substring(0, 1).ToUpper()</span>
+                    }
+                </div>
+                <div class="user-info">
+                    <div class="user-name">@user.Name</div>
+                    <div class="user-status">
+                        <span class="status-indicator @(user.IsOnline ? "online" : "offline")"></span>
+                        @(user.IsOnline ? "Online" : "Offline")
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<User> Users { get; set; } = new();
+
+    [Parameter]
+    public string CurrentUser { get; set; } = string.Empty;
+}

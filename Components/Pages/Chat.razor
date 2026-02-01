@@ -1,0 +1,231 @@
+@page "/chat"
+@using Microsoft.AspNetCore.SignalR.Client
+@using blazorchat.Models
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
+
+<PageTitle>Chat - Blazor Chat Application</PageTitle>
+
+<div class="chat-container">
+    @if (!_isConnected)
+    {
+        <div class="login-container">
+            <div class="login-box">
+                <h2>Welcome to Blazor Chat</h2>
+                <p>Enter your name to join the chat</p>
+                <input type="text" @bind="_userName" placeholder="Your name" class="login-input" @onkeypress="HandleKeyPress" />
+                <button @onclick="ConnectToChat" disabled="@_isConnecting" class="login-button">
+                    @(_isConnecting ? "Connecting..." : "Join Chat")
+                </button>
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-message">@_errorMessage</div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="chat-layout">
+            <UserList Users="_users" CurrentUser="_userName" />
+            <ChatWindow 
+                Messages="_messages" 
+                CurrentUser="_userName" 
+                OnSendMessage="HandleSendMessage"
+                OnSendImage="HandleSendImage"
+                OnSendVoice="HandleSendVoice"
+                OnSendFile="HandleSendFile"
+                OnTyping="HandleTyping"
+                TypingUsers="_typingUsers" />
+        </div>
+    }
+</div>
+
+@code {
+    private HubConnection? _hubConnection;
+    private List<ChatMessage> _messages = new();
+    private List<User> _users = new();
+    private List<string> _typingUsers = new();
+    private string _userName = string.Empty;
+    private string _errorMessage = string.Empty;
+    private bool _isConnected = false;
+    private bool _isConnecting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check for URL parameters (for WebForm integration)
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        var userId = query["userId"];
+        var userName = query["userName"];
+        
+        if (!string.IsNullOrEmpty(userName))
+        {
+            _userName = userName;
+            await ConnectToChat();
+        }
+
+        // Initialize SignalR connection
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/chathub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
+        {
+            _messages.Add(message);
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<List<ChatMessage>>("LoadMessages", (messages) =>
+        {
+            _messages = messages;
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<string>("UserConnected", (userName) =>
+        {
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<string>("UserDisconnected", (userName) =>
+        {
+            var user = _users.FirstOrDefault(u => u.Name == userName);
+            if (user != null)
+            {
+                user.IsOnline = false;
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<List<User>>("UpdateUserList", (users) =>
+        {
+            _users = users;
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hubConnection.On<string>("UserTyping", (userName) =>
+        {
+            if (!_typingUsers.Contains(userName))
+            {
+                _typingUsers.Add(userName);
+                InvokeAsync(StateHasChanged);
+
+                // Remove typing indicator after 3 seconds
+                Task.Delay(3000).ContinueWith(_ =>
+                {
+                    _typingUsers.Remove(userName);
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+        });
+
+        _hubConnection.On<string>("MessageRead", (messageId) =>
+        {
+            var message = _messages.FirstOrDefault(m => m.Id == messageId);
+            if (message != null)
+            {
+                message.IsRead = true;
+                InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_userName))
+        {
+            await ConnectToChat();
+        }
+    }
+
+    private async Task ConnectToChat()
+    {
+        if (string.IsNullOrWhiteSpace(_userName))
+        {
+            _errorMessage = "Please enter your name";
+            return;
+        }
+
+        try
+        {
+            _isConnecting = true;
+            _errorMessage = string.Empty;
+
+            if (_hubConnection?.State == HubConnectionState.Disconnected)
+            {
+                await _hubConnection.StartAsync();
+            }
+
+            if (_hubConnection != null)
+            {
+                await _hubConnection.InvokeAsync("UserConnected", _userName);
+                _isConnected = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Connection failed: {ex.Message}";
+        }
+        finally
+        {
+            _isConnecting = false;
+        }
+    }
+
+    private async Task SendTextMessage(string message)
+    {
+        if (_hubConnection != null && !string.IsNullOrWhiteSpace(message))
+        {
+            await _hubConnection.InvokeAsync("SendMessage", _userName, message);
+        }
+    }
+
+    private async Task SendImage(string imageData, string fileName)
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.InvokeAsync("SendImage", _userName, imageData, fileName);
+        }
+    }
+
+    private async Task SendVoice(string audioData, int duration)
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.InvokeAsync("SendVoiceMessage", _userName, audioData, duration);
+        }
+    }
+
+    private async Task SendFile(string fileData, string fileName)
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.InvokeAsync("SendFile", _userName, fileData, fileName);
+        }
+    }
+
+    private async Task NotifyTyping()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.InvokeAsync("UserTyping", _userName);
+        }
+    }
+
+    // EventCallback handlers to match the expected signatures
+    private async Task HandleSendMessage(string message) => await SendTextMessage(message);
+    private async Task HandleSendImage((string imageData, string fileName) data) => await SendImage(data.imageData, data.fileName);
+    private async Task HandleSendVoice((string audioData, int duration) data) => await SendVoice(data.audioData, data.duration);
+    private async Task HandleSendFile((string fileData, string fileName) data) => await SendFile(data.fileData, data.fileName);
+    private async Task HandleTyping() => await NotifyTyping();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}
