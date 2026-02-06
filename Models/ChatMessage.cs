@@ -4,6 +4,9 @@ public class ChatMessage
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string User { get; set; } = string.Empty;
+    public string SenderId { get; set; } = string.Empty;
+    public string? RecipientId { get; set; }
+    public bool IsGroup { get; set; }
     public string Content { get; set; } = string.Empty;
     public MessageType Type { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;

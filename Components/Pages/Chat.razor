@@ -41,10 +41,17 @@
             </div>
         }
         <ChatWindow 
-            Messages="messages" 
+            Messages="filteredMessages" 
             CurrentUser="@userName"
+            CurrentUserId="@userId"
             OnlineUsers="onlineUsers"
             TypingUser="typingUser"
+            SelectedUserId="selectedUserId"
+            SelectedChatName="selectedChatName"
+            IsGroupChat="isGroupChat"
+            CanSendMessages="canSendMessages"
+            OnSelectUser="EventCallback.Factory.Create<string>(this, SelectUser)"
+            OnSelectGroup="EventCallback.Factory.Create(this, SelectGroup)"
             OnSendMessage="EventCallback.Factory.Create<string>(this, SendMessage)"
             OnSendImage="EventCallback.Factory.Create<(string, string)>(this, SendImage)"
             OnSendVoice="EventCallback.Factory.Create<(string, int)>(this, SendVoiceMessage)"
@@ -62,6 +69,9 @@
     private bool isJoined = false;
     private string typingUser = "";
     private System.Threading.Timer? typingTimer;
+    private string? selectedUserId;
+    private string selectedChatName = "Select a contact";
+    private bool isGroupChat = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,18 +168,21 @@
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.On<string>("UserTyping", (user) =>
+        hubConnection.On<string, string, string?, bool>("UserTyping", (senderId, senderName, recipientId, isGroup) =>
         {
-            typingUser = user;
-            InvokeAsync(StateHasChanged);
-            
-            // Clear typing indicator after 3 seconds
-            typingTimer?.Dispose();
-            typingTimer = new System.Threading.Timer(_ =>
+            if (IsTypingForActiveChat(senderId, recipientId, isGroup))
             {
-                typingUser = "";
+                typingUser = senderName;
                 InvokeAsync(StateHasChanged);
-            }, null, 3000, Timeout.Infinite);
+            
+                // Clear typing indicator after 3 seconds
+                typingTimer?.Dispose();
+                typingTimer = new System.Threading.Timer(_ =>
+                {
+                    typingUser = "";
+                    InvokeAsync(StateHasChanged);
+                }, null, 3000, Timeout.Infinite);
+            }
         });
 
         await hubConnection.StartAsync();
@@ -186,19 +199,19 @@
 
     private async Task SendMessage(string message)
     {
-        if (hubConnection is not null && !string.IsNullOrWhiteSpace(message))
+        if (hubConnection is not null && !string.IsNullOrWhiteSpace(message) && canSendMessages)
         {
-            await hubConnection.SendAsync("SendMessage", userName, message);
+            await hubConnection.SendAsync("SendMessage", userId, userName, message, selectedUserId, isGroupChat);
         }
     }
 
     private async Task SendImage((string imageData, string fileName) data)
     {
-        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected)
+        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected && canSendMessages)
         {
             try
             {
-                await hubConnection.SendAsync("SendImage", userName, data.imageData, data.fileName);
+                await hubConnection.SendAsync("SendImage", userId, userName, data.imageData, data.fileName, selectedUserId, isGroupChat);
             }
             catch (Exception ex)
             {
@@ -209,11 +222,11 @@
 
     private async Task SendVoiceMessage((string audioData, int duration) data)
     {
-        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected)
+        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected && canSendMessages)
         {
             try
             {
-                await hubConnection.SendAsync("SendVoiceMessage", userName, data.audioData, data.duration);
+                await hubConnection.SendAsync("SendVoiceMessage", userId, userName, data.audioData, data.duration, selectedUserId, isGroupChat);
             }
             catch (Exception ex)
             {
@@ -224,11 +237,11 @@
 
     private async Task SendFile((string fileData, string fileName) data)
     {
-        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected)
+        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected && canSendMessages)
         {
             try
             {
-                await hubConnection.SendAsync("SendFile", userName, data.fileData, data.fileName);
+                await hubConnection.SendAsync("SendFile", userId, userName, data.fileData, data.fileName, selectedUserId, isGroupChat);
             }
             catch (Exception ex)
             {
@@ -239,11 +252,60 @@
 
     private async Task HandleTyping()
     {
-        if (hubConnection is not null)
+        if (hubConnection is not null && canSendMessages)
         {
-            await hubConnection.SendAsync("UserTyping", userName);
+            await hubConnection.SendAsync("UserTyping", userId, userName, selectedUserId, isGroupChat);
         }
     }
+
+    private void SelectUser(string selectedId)
+    {
+        var selectedUser = onlineUsers.FirstOrDefault(user => user.Id == selectedId);
+        if (selectedUser is null)
+        {
+            return;
+        }
+
+        selectedUserId = selectedUser.Id;
+        selectedChatName = selectedUser.Name;
+        isGroupChat = false;
+        typingUser = "";
+    }
+
+    private void SelectGroup()
+    {
+        selectedUserId = null;
+        selectedChatName = "Group Chat";
+        isGroupChat = true;
+        typingUser = "";
+    }
+
+    private bool IsTypingForActiveChat(string senderId, string? recipientId, bool isGroup)
+    {
+        if (isGroupChat && isGroup)
+        {
+            return true;
+        }
+
+        if (!isGroupChat && !isGroup && !string.IsNullOrWhiteSpace(selectedUserId))
+        {
+            return senderId == selectedUserId && recipientId == userId;
+        }
+
+        return false;
+    }
+
+    private List<ChatMessage> filteredMessages =>
+        isGroupChat
+            ? messages.Where(message => message.IsGroup).ToList()
+            : messages
+                .Where(message => !message.IsGroup
+                    && !string.IsNullOrWhiteSpace(selectedUserId)
+                    && ((message.SenderId == userId && message.RecipientId == selectedUserId)
+                        || (message.SenderId == selectedUserId && message.RecipientId == userId)))
+                .ToList();
+
+    private bool canSendMessages => isGroupChat || !string.IsNullOrWhiteSpace(selectedUserId);
 
     public async ValueTask DisposeAsync()
     {
