@@ -42,7 +42,7 @@ public class ChatHub : Hub
         _chatService.AddUser(user);
         
         // Send existing messages to the new user
-        var messages = _chatService.GetMessages();
+        var messages = _chatService.GetMessagesForUser(userId);
         await Clients.Caller.SendAsync("LoadMessages", messages);
         
         // Notify all users about the new connection
@@ -53,25 +53,47 @@ public class ChatHub : Hub
         await Clients.All.SendAsync("UpdateUserList", users);
     }
 
-    public async Task SendMessage(string user, string message)
+    public async Task SendMessage(string senderId, string senderName, string message, string? recipientId, bool isGroup)
     {
         var chatMessage = new ChatMessage
         {
-            User = user,
+            User = senderName,
+            SenderId = senderId,
+            RecipientId = recipientId,
+            IsGroup = isGroup,
             Content = message,
             Type = MessageType.Text,
             Timestamp = DateTime.UtcNow
         };
 
         _chatService.AddMessage(chatMessage);
-        await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+        if (isGroup)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
+                .SendAsync("ReceiveMessage", chatMessage);
+        }
     }
 
-    public async Task SendImage(string user, string imageData, string fileName)
+    public async Task SendImage(string senderId, string senderName, string imageData, string fileName, string? recipientId, bool isGroup)
     {
         var chatMessage = new ChatMessage
         {
-            User = user,
+            User = senderName,
+            SenderId = senderId,
+            RecipientId = recipientId,
+            IsGroup = isGroup,
             Content = imageData,
             Type = MessageType.Image,
             FileName = fileName,
@@ -79,14 +101,33 @@ public class ChatHub : Hub
         };
 
         _chatService.AddMessage(chatMessage);
-        await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+        if (isGroup)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
+                .SendAsync("ReceiveMessage", chatMessage);
+        }
     }
 
-    public async Task SendVoiceMessage(string user, string audioData, int duration)
+    public async Task SendVoiceMessage(string senderId, string senderName, string audioData, int duration, string? recipientId, bool isGroup)
     {
         var chatMessage = new ChatMessage
         {
-            User = user,
+            User = senderName,
+            SenderId = senderId,
+            RecipientId = recipientId,
+            IsGroup = isGroup,
             Content = audioData,
             Type = MessageType.Voice,
             Duration = duration,
@@ -94,14 +135,33 @@ public class ChatHub : Hub
         };
 
         _chatService.AddMessage(chatMessage);
-        await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+        if (isGroup)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
+                .SendAsync("ReceiveMessage", chatMessage);
+        }
     }
 
-    public async Task SendFile(string user, string fileData, string fileName)
+    public async Task SendFile(string senderId, string senderName, string fileData, string fileName, string? recipientId, bool isGroup)
     {
         var chatMessage = new ChatMessage
         {
-            User = user,
+            User = senderName,
+            SenderId = senderId,
+            RecipientId = recipientId,
+            IsGroup = isGroup,
             Content = fileData,
             Type = MessageType.File,
             FileName = fileName,
@@ -109,12 +169,44 @@ public class ChatHub : Hub
         };
 
         _chatService.AddMessage(chatMessage);
-        await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+        if (isGroup)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
+                .SendAsync("ReceiveMessage", chatMessage);
+        }
     }
 
-    public async Task UserTyping(string user)
+    public async Task UserTyping(string senderId, string senderName, string? recipientId, bool isGroup)
     {
-        await Clients.Others.SendAsync("UserTyping", user);
+        if (isGroup)
+        {
+            await Clients.Others.SendAsync("UserTyping", senderId, senderName, recipientId, isGroup);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Client(recipient.ConnectionId)
+                .SendAsync("UserTyping", senderId, senderName, recipientId, isGroup);
+        }
     }
 
     public async Task MessageRead(string messageId)
