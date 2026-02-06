@@ -25,6 +25,7 @@ public class ChatHub : Hub
         {
             _chatService.RemoveUser(user.Id);
             await Clients.All.SendAsync("UserDisconnected", user.Name);
+            await SendUpdatedUserLists();
         }
         await base.OnDisconnectedAsync(exception);
     }
@@ -49,8 +50,7 @@ public class ChatHub : Hub
         await Clients.All.SendAsync("UserConnected", userName);
         
         // Send updated user list to all clients
-        var users = _chatService.GetOnlineUsers();
-        await Clients.All.SendAsync("UpdateUserList", users);
+        await SendUpdatedUserLists();
     }
 
     public async Task SendMessage(string senderId, string senderName, string message, string? recipientId, bool isGroup)
@@ -213,5 +213,15 @@ public class ChatHub : Hub
     {
         _chatService.MarkMessageAsRead(messageId);
         await Clients.All.SendAsync("MessageRead", messageId);
+    }
+
+    private async Task SendUpdatedUserLists()
+    {
+        var users = _chatService.GetOnlineUsers();
+        foreach (var user in users)
+        {
+            var otherUsers = users.Where(onlineUser => onlineUser.Id != user.Id).ToList();
+            await Clients.Client(user.ConnectionId).SendAsync("UpdateUserList", otherUsers);
+        }
     }
 }
