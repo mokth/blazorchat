@@ -18,6 +18,16 @@ public class ChatService : IChatService
         return _messages.OrderBy(m => m.Timestamp).ToList();
     }
 
+    public List<ChatMessage> GetMessagesForUser(string userId)
+    {
+        return _messages
+            .Where(message => message.IsGroup
+                || message.SenderId == userId
+                || message.RecipientId == userId)
+            .OrderBy(message => message.Timestamp)
+            .ToList();
+    }
+
     public void AddUser(User user)
     {
         _users.TryAdd(user.Id, user);
@@ -36,6 +46,12 @@ public class ChatService : IChatService
     public User? GetUserByConnectionId(string connectionId)
     {
         return _users.Values.FirstOrDefault(u => u.ConnectionId == connectionId);
+    }
+
+    public User? GetUserById(string userId)
+    {
+        _users.TryGetValue(userId, out var user);
+        return user;
     }
 
     public void MarkMessageAsRead(string messageId)

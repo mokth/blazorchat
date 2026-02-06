@@ -1,11 +1,21 @@
 @using blazorchat.Models
 
 <div class="user-list">
-    <h4>Online Users (@Users.Count)</h4>
+    <h4>Chats</h4>
     <div class="users">
-        @foreach (var user in Users)
+        <button class="user-item group-chat @(IsGroupSelected ? "selected" : "")" @onclick="OnSelectGroup">
+            <div class="user-avatar group-avatar">
+                👥
+            </div>
+            <div class="user-info">
+                <span class="user-name">Group Chat</span>
+                <span class="user-status">Everyone</span>
+            </div>
+        </button>
+
+        @foreach (var user in Users.Where(user => user.Id != CurrentUserId))
         {
-            <div class="user-item">
+            <button class="user-item @(SelectedUserId == user.Id ? "selected" : "")" @onclick="() => OnSelectUser.InvokeAsync(user.Id)">
                 <div class="user-avatar">
                     @user.Name.Substring(0, 1).ToUpper()
                 </div>
@@ -17,11 +27,16 @@
                 {
                     <div class="online-indicator"></div>
                 }
-            </div>
+            </button>
         }
     </div>
 </div>
 
 @code {
     [Parameter] public List<User> Users { get; set; } = new();
+    [Parameter] public string CurrentUserId { get; set; } = "";
+    [Parameter] public string? SelectedUserId { get; set; }
+    [Parameter] public bool IsGroupSelected { get; set; }
+    [Parameter] public EventCallback<string> OnSelectUser { get; set; }
+    [Parameter] public EventCallback OnSelectGroup { get; set; }
 }

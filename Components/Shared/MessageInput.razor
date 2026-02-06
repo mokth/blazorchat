@@ -3,17 +3,10 @@
 
 <div class="message-input-container">
     <div class="input-actions">
-        <button class="btn-icon" @onclick="HandleImageUpload" title="Send image">
+        <button class="btn-icon" @onclick="HandleImageUpload" title="Send image" disabled="@isUploading">
             📷
         </button>
-        <button class="btn-icon"
-                title="Hold to record voice"
-                @onpointerdown="HandleVoicePress"
-                @onpointerup="HandleVoiceRelease"
-                @onpointerleave="HandleVoiceRelease"
-                @onpointercancel="HandleVoiceRelease"
-                @onkeydown="HandleVoiceKeyDown"
-                @onkeyup="HandleVoiceKeyUp">
+        <button class="btn-icon" @onclick="ToggleVoiceRecorder" title="Record voice" disabled="@isUploading">
             @if (isRecording)
             {
                 <span>⏹️</span>
@@ -23,7 +16,7 @@
                 <span>🎤</span>
             }
         </button>
-        <button class="btn-icon" @onclick="HandleFileUpload" title="Attach file">
+        <button class="btn-icon" @onclick="HandleFileUpload" title="Attach file" disabled="@isUploading">
             📎
         </button>
     </div>
@@ -42,18 +35,21 @@
     {
         <input type="text" 
                class="message-input" 
-               placeholder="Type a message..." 
+               placeholder="@Placeholder" 
                @bind="currentMessage" 
                @bind:event="oninput"
-               @onkeydown="HandleKeyDown" />
+               @onkeydown="HandleKeyDown"
+               disabled="@(!CanSend)" />
     }
 
-    <button class="btn-send" @onclick="SendCurrentMessage" disabled="@(string.IsNullOrWhiteSpace(currentMessage) && !isRecording)">
+    <button class="btn-send" @onclick="SendCurrentMessage" disabled="@(string.IsNullOrWhiteSpace(currentMessage) && !isRecording || !CanSend)">
         ➤
     </button>
 </div>
 
 @code {
+    [Parameter] public bool CanSend { get; set; } = true;
+    [Parameter] public string Placeholder { get; set; } = "Type a message...";
     [Parameter] public EventCallback<string> OnSendMessage { get; set; }
     [Parameter] public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
     [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
@@ -71,7 +67,7 @@
 
     private async Task SendCurrentMessage()
     {
-        if (!string.IsNullOrWhiteSpace(currentMessage))
+        if (!string.IsNullOrWhiteSpace(currentMessage) && CanSend)
         {
             await OnSendMessage.InvokeAsync(currentMessage);
             currentMessage = "";
@@ -84,7 +80,7 @@
         {
             await SendCurrentMessage();
         }
-        else
+        else if (CanSend)
         {
             // Trigger typing indicator on any key press
             await OnTyping.InvokeAsync();
@@ -134,8 +130,13 @@
             return;
         }
 
-        var started = await JSRuntime.InvokeAsync<bool>("startVoiceRecording");
-        if (!started)
+    private async Task ToggleVoiceRecorder()
+    {
+        if (!isRecording)
+        {
+            await StartRecording();
+        }
+        else
         {
             isRecordingRequested = false;
             stopRequested = false;
