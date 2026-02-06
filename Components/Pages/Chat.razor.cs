@@ -23,6 +23,13 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private string selectedChatName = "Select a contact";
     private bool isGroupChat = false;
     private Dictionary<string, int> unreadCounts = new();
+    private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
+
+    private sealed class StoredChatUser
+    {
+        public string UserId { get; set; } = "";
+        public string UserName { get; set; } = "";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -150,12 +157,38 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         await hubConnection.StartAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await JSRuntime.InvokeVoidAsync("registerRefreshWarning", RefreshWarningMessage);
+
+        var storedUser = await JSRuntime.InvokeAsync<StoredChatUser?>("chatStorage.loadUser");
+        if (storedUser is not null
+            && !string.IsNullOrWhiteSpace(storedUser.UserId)
+            && !string.IsNullOrWhiteSpace(storedUser.UserName))
+        {
+            userId = storedUser.UserId;
+            userName = storedUser.UserName;
+            await JoinChat();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task JoinChat()
     {
         if (!string.IsNullOrWhiteSpace(userName) && hubConnection is not null)
         {
             isJoined = true;
             await hubConnection.SendAsync("UserConnected", userId, userName);
+            await JSRuntime.InvokeVoidAsync("chatStorage.saveUser", new StoredChatUser
+            {
+                UserId = userId,
+                UserName = userName
+            });
         }
     }
 
@@ -334,6 +367,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         typingTimer?.Dispose();
+        await JSRuntime.InvokeVoidAsync("clearRefreshWarning");
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();
