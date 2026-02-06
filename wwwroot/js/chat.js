@@ -8,26 +8,43 @@ window.scrollToBottom = function() {
 };
 
 window.triggerFileInput = function(element) {
-    element.click();
+    if (element) {
+        element.click();
+    }
 };
 
-window.readFileAsBase64 = function(element) {
+window.readFileAsBase64 = async function(inputElement) {
     return new Promise((resolve, reject) => {
-        const file = element.files[0];
-        if (!file) {
+        if (!inputElement || !inputElement.files || inputElement.files.length === 0) {
+            resolve('');
+            return;
+        }
+
+        const file = inputElement.files[0];
+        const maxSize = 5 * 1024 * 1024; // 5 MB limit
+
+        if (file.size > maxSize) {
+            alert('File is too large. Maximum size is 5 MB.');
+            inputElement.value = ''; // Clear the input
             resolve('');
             return;
         }
 
         const reader = new FileReader();
+
         reader.onload = function(e) {
             const base64 = e.target.result;
             const fileName = file.name;
+            inputElement.value = ''; // Clear the input after reading
             resolve(base64 + '|' + fileName);
         };
+
         reader.onerror = function(error) {
+            console.error('Error reading file:', error);
+            inputElement.value = ''; // Clear the input on error
             reject(error);
         };
+
         reader.readAsDataURL(file);
     });
 };

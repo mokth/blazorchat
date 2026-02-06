@@ -30,10 +30,14 @@
                                        lastTime.HasValue && 
                                        (message.Timestamp - lastTime.Value).TotalMinutes < 1;
 
-                        <MessageBubble 
-                            Message="message" 
-                            IsCurrentUser="@(message.User == CurrentUser)"
-                            IsGrouped="isGrouped" />
+                        bool isMine = message.User == CurrentUser;
+
+                        <div class="@(isMine ? "msg-right" : "msg-left")">
+                            <MessageBubble 
+                                Message="message" 
+                                IsCurrentUser="@isMine"
+                                IsGrouped="isGrouped" />
+                        </div>
 
                         lastUser = message.User;
                         lastTime = message.Timestamp;
@@ -68,4 +72,13 @@
     [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
     [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
     [Parameter] public EventCallback OnTyping { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Console.WriteLine($"ChatWindow - CurrentUser: '{CurrentUser}', Messages: {Messages.Count}");
+        if (Messages.Any())
+        {
+            Console.WriteLine($"First message user: '{Messages[0].User}'");
+        }
+    }
 }
