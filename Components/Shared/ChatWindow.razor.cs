@@ -23,7 +23,31 @@ public partial class ChatWindow : ComponentBase
     [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
     [Parameter] public EventCallback OnTyping { get; set; }
 
+    private bool IsMobileUserListOpen { get; set; }
+
     private string ChatModeLabel => IsGroupChat ? "Group Chat" : "1:1 Chat";
+
+    private void ToggleMobileUserList()
+    {
+        IsMobileUserListOpen = !IsMobileUserListOpen;
+    }
+
+    private void CloseMobileUserList()
+    {
+        IsMobileUserListOpen = false;
+    }
+
+    private async Task HandleSelectUser(string userId)
+    {
+        await OnSelectUser.InvokeAsync(userId);
+        CloseMobileUserList();
+    }
+
+    private async Task HandleSelectGroup()
+    {
+        await OnSelectGroup.InvokeAsync();
+        CloseMobileUserList();
+    }
 
     protected override void OnParametersSet()
     {
