@@ -183,8 +183,6 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         {
             userId = storedUser.UserId;
             userName = storedUser.UserName;
-            await JoinChat();
-            await ApplyStoredSelectionIfReadyAsync();
             await InvokeAsync(StateHasChanged);
         }
     }
