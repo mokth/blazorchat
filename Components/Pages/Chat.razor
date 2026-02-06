@@ -50,6 +50,7 @@
             SelectedChatName="selectedChatName"
             IsGroupChat="isGroupChat"
             CanSendMessages="canSendMessages"
+            UnreadCounts="unreadCounts"
             OnSelectUser="EventCallback.Factory.Create<string>(this, SelectUser)"
             OnSelectGroup="EventCallback.Factory.Create(this, SelectGroup)"
             OnSendMessage="EventCallback.Factory.Create<string>(this, SendMessage)"
@@ -72,6 +73,7 @@
     private string? selectedUserId;
     private string selectedChatName = "Select a contact";
     private bool isGroupChat = false;
+    private Dictionary<string, int> unreadCounts = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,12 +144,23 @@
         hubConnection.On<List<ChatMessage>>("LoadMessages", (loadedMessages) =>
         {
             messages = loadedMessages;
+            UpdateUnreadCounts();
             InvokeAsync(StateHasChanged);
         });
 
         hubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
         {
             messages.Add(message);
+            if (ShouldNotifyForMessage(message))
+            {
+                unreadCounts[message.SenderId] = unreadCounts.TryGetValue(message.SenderId, out var count)
+                    ? count + 1
+                    : 1;
+            }
+            else if (ShouldMarkAsRead(message))
+            {
+                _ = InvokeAsync(() => MarkMessagesAsRead(message.SenderId));
+            }
             InvokeAsync(StateHasChanged);
             InvokeAsync(async () => await JSRuntime.InvokeVoidAsync("scrollToBottom"));
         });
@@ -258,7 +271,7 @@
         }
     }
 
-    private void SelectUser(string selectedId)
+    private async Task SelectUser(string selectedId)
     {
         var selectedUser = onlineUsers.FirstOrDefault(user => user.Id == selectedId);
         if (selectedUser is null)
@@ -270,6 +283,7 @@
         selectedChatName = selectedUser.Name;
         isGroupChat = false;
         typingUser = "";
+        await MarkMessagesAsRead(selectedUser.Id);
     }
 
     private void SelectGroup()
@@ -293,6 +307,67 @@
         }
 
         return false;
+    }
+
+    private bool ShouldNotifyForMessage(ChatMessage message)
+    {
+        if (message.IsGroup || message.RecipientId != userId || message.SenderId == userId)
+        {
+            return false;
+        }
+
+        return isGroupChat || selectedUserId != message.SenderId;
+    }
+
+    private bool ShouldMarkAsRead(ChatMessage message)
+    {
+        return !message.IsGroup
+            && message.RecipientId == userId
+            && message.SenderId != userId
+            && !isGroupChat
+            && selectedUserId == message.SenderId;
+    }
+
+    private void UpdateUnreadCounts()
+    {
+        unreadCounts = messages
+            .Where(message => !message.IsGroup
+                && message.RecipientId == userId
+                && !message.IsRead
+                && message.SenderId != userId)
+            .GroupBy(message => message.SenderId)
+            .ToDictionary(group => group.Key, group => group.Count());
+    }
+
+    private async Task MarkMessagesAsRead(string senderId)
+    {
+        var unreadMessages = messages
+            .Where(message => !message.IsGroup
+                && message.RecipientId == userId
+                && message.SenderId == senderId
+                && !message.IsRead)
+            .ToList();
+
+        if (unreadMessages.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var message in unreadMessages)
+        {
+            message.IsRead = true;
+        }
+
+        unreadCounts.Remove(senderId);
+        await InvokeAsync(StateHasChanged);
+
+        if (hubConnection is not null)
+        {
+            foreach (var message in unreadMessages)
+            {
+                await hubConnection.SendAsync("MessageRead", message.Id);
+            }
+        }
     }
 
     private List<ChatMessage> filteredMessages =>
