@@ -60,8 +60,7 @@
     private ElementReference imageInputRef;
     private ElementReference fileInputRef;
     private bool isRecording = false;
-    private bool isRecordingRequested = false;
-    private bool stopRequested = false;
+    private bool isUploading = false;
     private int recordingDuration = 0;
     private System.Threading.Timer? recordingTimer;
 
@@ -123,13 +122,6 @@
         }
     }
 
-    private async Task StartRecording()
-    {
-        if (isRecording)
-        {
-            return;
-        }
-
     private async Task ToggleVoiceRecorder()
     {
         if (!isRecording)
@@ -138,20 +130,25 @@
         }
         else
         {
-            isRecordingRequested = false;
-            stopRequested = false;
-            isRecording = false;
+            await StopRecording();
+        }
+    }
+
+    private async Task StartRecording()
+    {
+        if (isRecording)
+        {
             return;
         }
 
         isRecording = true;
         recordingDuration = 0;
-        
+
         recordingTimer = new System.Threading.Timer(_ =>
         {
             recordingDuration++;
             InvokeAsync(StateHasChanged);
-            
+
             // Auto-stop after 2 minutes
             if (recordingDuration >= 120)
             {
@@ -159,10 +156,7 @@
             }
         }, null, 1000, 1000);
 
-        if (!isRecordingRequested || stopRequested)
-        {
-            await StopRecording();
-        }
+        await JSRuntime.InvokeVoidAsync("startVoiceRecording");
     }
 
     private async Task StopRecording()
@@ -173,57 +167,14 @@
         }
 
         isRecording = false;
-        isRecordingRequested = false;
-        stopRequested = false;
         recordingTimer?.Dispose();
-        
+
         var audioData = await JSRuntime.InvokeAsync<string>("stopVoiceRecording");
         if (!string.IsNullOrEmpty(audioData))
         {
             await OnSendVoice.InvokeAsync((audioData, recordingDuration));
         }
-        
+
         recordingDuration = 0;
-    }
-
-    private async Task HandleVoicePress()
-    {
-        if (isRecordingRequested)
-        {
-            return;
-        }
-
-        isRecordingRequested = true;
-        stopRequested = false;
-        await StartRecording();
-    }
-
-    private async Task HandleVoiceRelease()
-    {
-        isRecordingRequested = false;
-
-        if (isRecording)
-        {
-            await StopRecording();
-            return;
-        }
-
-        stopRequested = true;
-    }
-
-    private async Task HandleVoiceKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key is " " or "Enter")
-        {
-            await HandleVoicePress();
-        }
-    }
-
-    private async Task HandleVoiceKeyUp(KeyboardEventArgs e)
-    {
-        if (e.Key is " " or "Enter")
-        {
-            await HandleVoiceRelease();
-        }
     }
 }
