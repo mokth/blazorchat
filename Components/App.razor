@@ -14,6 +14,45 @@
 
 <body>
     <Routes />
+    <script>
+        window.registerRefreshWarning = window.registerRefreshWarning || function(message) {
+            window.onbeforeunload = function(event) {
+                const warningMessage = message || 'Are you sure you want to refresh?';
+                event.preventDefault();
+                event.returnValue = warningMessage;
+                return warningMessage;
+            };
+        };
+
+        window.clearRefreshWarning = window.clearRefreshWarning || function() {
+            window.onbeforeunload = null;
+        };
+
+        window.chatStorage = window.chatStorage || {
+            key: 'blazorchat.user',
+            saveUser: function(user) {
+                if (!user) {
+                    return;
+                }
+                localStorage.setItem(this.key, JSON.stringify(user));
+            },
+            loadUser: function() {
+                const data = localStorage.getItem(this.key);
+                if (!data) {
+                    return null;
+                }
+                try {
+                    return JSON.parse(data);
+                } catch (error) {
+                    console.error('Unable to parse stored chat user.', error);
+                    return null;
+                }
+            },
+            clearUser: function() {
+                localStorage.removeItem(this.key);
+            }
+        };
+    </script>
     <script src="js/chat.js"></script>
     <script src="js/voiceRecorder.js"></script>
     <script src="_framework/blazor.web.js"></script>
