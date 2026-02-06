@@ -36,7 +36,7 @@ builder.Services.AddHostedService<ChatCleanupService>();
 builder.Services.AddDbContextFactory<ChatDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("ChatDatabase");
-    options.UseSqlite(connectionString);
+    options.UseSqlServer(connectionString);
 });
 
 // Add CORS for WebForm integration
@@ -69,11 +69,6 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatDbContext>>();
-    var dataDirectory = Path.Combine(app.Environment.ContentRootPath, "AppData");
-    if (!Directory.Exists(dataDirectory))
-    {
-        Directory.CreateDirectory(dataDirectory);
-    }
     await using var dbContext = await dbContextFactory.CreateDbContextAsync();
     await dbContext.Database.EnsureCreatedAsync();
 }
