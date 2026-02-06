@@ -84,6 +84,16 @@
     display: none;
 }
 
+@media (min-width: 769px) {
+    .mobile-userlist-toggle {
+        display: none;
+    }
+
+    .sidebar-header {
+        display: none;
+    }
+}
+
 .chat-content {
     flex: 1;
     display: flex;
