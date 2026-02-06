@@ -24,11 +24,19 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private bool isGroupChat = false;
     private Dictionary<string, int> unreadCounts = new();
     private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
+    private bool hasAppliedStoredSelection = false;
 
     private sealed class StoredChatUser
     {
         public string UserId { get; set; } = "";
         public string UserName { get; set; } = "";
+    }
+
+    private sealed class StoredChatSelection
+    {
+        public string? SelectedUserId { get; set; }
+        public string SelectedChatName { get; set; } = "";
+        public bool IsGroupChat { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -101,6 +109,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         {
             messages = loadedMessages;
             UpdateUnreadCounts();
+            _ = InvokeAsync(ApplyStoredSelectionIfReadyAsync);
             InvokeAsync(StateHasChanged);
         });
 
@@ -134,6 +143,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         hubConnection.On<List<User>>("UpdateUserList", users =>
         {
             onlineUsers = users;
+            _ = InvokeAsync(ApplyStoredSelectionIfReadyAsync);
             InvokeAsync(StateHasChanged);
         });
 
@@ -174,6 +184,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             userId = storedUser.UserId;
             userName = storedUser.UserName;
             await JoinChat();
+            await ApplyStoredSelectionIfReadyAsync();
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -265,15 +276,17 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         selectedChatName = selectedUser.Name;
         isGroupChat = false;
         typingUser = "";
+        await PersistSelection();
         await MarkMessagesAsRead(selectedUser.Id);
     }
 
-    private void SelectGroup()
+    private async Task SelectGroup()
     {
         selectedUserId = null;
         selectedChatName = "Group Chat";
         isGroupChat = true;
         typingUser = "";
+        await PersistSelection();
     }
 
     private bool IsTypingForActiveChat(string senderId, string? recipientId, bool isGroup)
@@ -372,5 +385,55 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         {
             await hubConnection.DisposeAsync();
         }
+    }
+
+    private async Task PersistSelection()
+    {
+        await JSRuntime.InvokeVoidAsync("chatStorage.saveSelection", new StoredChatSelection
+        {
+            SelectedUserId = selectedUserId,
+            SelectedChatName = selectedChatName,
+            IsGroupChat = isGroupChat
+        });
+    }
+
+    private async Task ApplyStoredSelectionIfReadyAsync()
+    {
+        if (hasAppliedStoredSelection || !isJoined)
+        {
+            return;
+        }
+
+        var storedSelection = await JSRuntime.InvokeAsync<StoredChatSelection?>("chatStorage.loadSelection");
+
+        if (storedSelection is null)
+        {
+            hasAppliedStoredSelection = true;
+            return;
+        }
+
+        if (storedSelection.IsGroupChat)
+        {
+            selectedUserId = null;
+            selectedChatName = "Group Chat";
+            isGroupChat = true;
+            typingUser = "";
+        }
+        else if (!string.IsNullOrWhiteSpace(storedSelection.SelectedUserId))
+        {
+            var selectedUser = onlineUsers.FirstOrDefault(user => user.Id == storedSelection.SelectedUserId);
+            if (selectedUser is not null)
+            {
+                selectedUserId = selectedUser.Id;
+                selectedChatName = string.IsNullOrWhiteSpace(storedSelection.SelectedChatName)
+                    ? selectedUser.Name
+                    : storedSelection.SelectedChatName;
+                isGroupChat = false;
+                typingUser = "";
+                _ = MarkMessagesAsRead(selectedUser.Id);
+            }
+        }
+
+        hasAppliedStoredSelection = true;
     }
 }

@@ -92,6 +92,7 @@ window.clearRefreshWarning = function() {
 
 window.chatStorage = {
     key: 'blazorchat.user',
+    selectionKey: 'blazorchat.selection',
     saveUser: function(user) {
         if (!user) {
             return;
@@ -112,5 +113,26 @@ window.chatStorage = {
     },
     clearUser: function() {
         localStorage.removeItem(this.key);
+    },
+    saveSelection: function(selection) {
+        if (!selection) {
+            return;
+        }
+        localStorage.setItem(this.selectionKey, JSON.stringify(selection));
+    },
+    loadSelection: function() {
+        const data = localStorage.getItem(this.selectionKey);
+        if (!data) {
+            return null;
+        }
+        try {
+            return JSON.parse(data);
+        } catch (error) {
+            console.error('Unable to parse stored chat selection.', error);
+            return null;
+        }
+    },
+    clearSelection: function() {
+        localStorage.removeItem(this.selectionKey);
     }
 };
