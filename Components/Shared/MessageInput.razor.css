@@ -28,6 +28,7 @@
 
 .message-input {
     flex: 1;
+    min-width: 0;
     padding: 10px 15px;
     border: none;
     border-radius: 20px;
@@ -132,4 +133,33 @@
 .message-input-container {
     position: relative;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 768px) {
+    .message-input-container {
+        padding: 8px calc(12px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+        gap: 8px;
+    }
+
+    .input-actions {
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .btn-icon {
+        font-size: 1.25rem;
+        padding: 4px;
+    }
+
+    .message-input {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+
+    .btn-send {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
 }
