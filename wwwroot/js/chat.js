@@ -13,7 +13,7 @@ window.triggerFileInput = function(element) {
     }
 };
 
-window.readFileAsBase64 = async function(inputElement) {
+window.readFileAsBase64 = async function(inputElement, maxSizeBytes, sizeLabel) {
     return new Promise((resolve, reject) => {
         if (!inputElement || !inputElement.files || inputElement.files.length === 0) {
             resolve('');
@@ -21,10 +21,11 @@ window.readFileAsBase64 = async function(inputElement) {
         }
 
         const file = inputElement.files[0];
-        const maxSize = 5 * 1024 * 1024; // 5 MB limit
+        const maxSize = maxSizeBytes || 5 * 1024 * 1024;
+        const limitLabel = sizeLabel || '5 MB';
 
         if (file.size > maxSize) {
-            alert('File is too large. Maximum size is 5 MB.');
+            alert(`File is too large. Maximum size is ${limitLabel}.`);
             inputElement.value = ''; // Clear the input
             resolve('');
             return;

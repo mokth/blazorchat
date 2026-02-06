@@ -1,31 +1,52 @@
+using blazorchat.Data;
 using blazorchat.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 
 namespace blazorchat.Services;
 
 public class ChatService : IChatService
 {
-    private readonly ConcurrentBag<ChatMessage> _messages = new();
+    private readonly IDbContextFactory<ChatDbContext> _dbContextFactory;
+    private readonly IConfiguration _configuration;
     private readonly ConcurrentDictionary<string, User> _users = new();
 
-    public void AddMessage(ChatMessage message)
+    public ChatService(IDbContextFactory<ChatDbContext> dbContextFactory, IConfiguration configuration)
     {
-        _messages.Add(message);
+        _dbContextFactory = dbContextFactory;
+        _configuration = configuration;
     }
 
-    public List<ChatMessage> GetMessages()
+    public async Task AddMessageAsync(ChatMessage message)
     {
-        return _messages.OrderBy(m => m.Timestamp).ToList();
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        dbContext.ChatMessages.Add(message);
+        await dbContext.SaveChangesAsync();
     }
 
-    public List<ChatMessage> GetMessagesForUser(string userId)
+    public async Task<List<ChatMessage>> GetMessagesAsync()
     {
-        return _messages
-            .Where(message => message.IsGroup
-                || message.SenderId == userId
-                || message.RecipientId == userId)
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.ChatMessages
+            .AsNoTracking()
+            .OrderBy(m => m.Timestamp)
+            .ToListAsync();
+    }
+
+    public async Task<List<ChatMessage>> GetMessagesForUserAsync(string userId)
+    {
+        var historyDays = _configuration.GetValue<int>("ChatRetention:HistoryDays");
+        var cutoff = DateTime.UtcNow.AddDays(-historyDays);
+
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.ChatMessages
+            .AsNoTracking()
+            .Where(message => message.Timestamp >= cutoff
+                && (message.IsGroup
+                    || message.SenderId == userId
+                    || message.RecipientId == userId))
             .OrderBy(message => message.Timestamp)
-            .ToList();
+            .ToListAsync();
     }
 
     public void AddUser(User user)
@@ -54,12 +75,14 @@ public class ChatService : IChatService
         return user;
     }
 
-    public void MarkMessageAsRead(string messageId)
+    public async Task MarkMessageAsReadAsync(string messageId)
     {
-        var message = _messages.FirstOrDefault(m => m.Id == messageId);
-        if (message != null)
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var message = await dbContext.ChatMessages.FirstOrDefaultAsync(m => m.Id == messageId);
+        if (message is not null)
         {
             message.IsRead = true;
+            await dbContext.SaveChangesAsync();
         }
     }
 }
