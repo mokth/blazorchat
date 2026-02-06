@@ -25,6 +25,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private Dictionary<string, int> unreadCounts = new();
     private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
     private bool hasAppliedStoredSelection = false;
+    private bool shouldScrollToBottom = false;
 
     private sealed class StoredChatUser
     {
@@ -169,21 +170,25 @@ public partial class Chat : ComponentBase, IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
         {
-            return;
+            await JSRuntime.InvokeVoidAsync("registerRefreshWarning", RefreshWarningMessage);
+
+            var storedUser = await JSRuntime.InvokeAsync<StoredChatUser?>("chatStorage.loadUser");
+            if (storedUser is not null
+                && !string.IsNullOrWhiteSpace(storedUser.UserId)
+                && !string.IsNullOrWhiteSpace(storedUser.UserName))
+            {
+                userId = storedUser.UserId;
+                userName = storedUser.UserName;
+                await InvokeAsync(StateHasChanged);
+            }
         }
 
-        await JSRuntime.InvokeVoidAsync("registerRefreshWarning", RefreshWarningMessage);
-
-        var storedUser = await JSRuntime.InvokeAsync<StoredChatUser?>("chatStorage.loadUser");
-        if (storedUser is not null
-            && !string.IsNullOrWhiteSpace(storedUser.UserId)
-            && !string.IsNullOrWhiteSpace(storedUser.UserName))
+        if (shouldScrollToBottom)
         {
-            userId = storedUser.UserId;
-            userName = storedUser.UserName;
-            await InvokeAsync(StateHasChanged);
+            shouldScrollToBottom = false;
+            await JSRuntime.InvokeVoidAsync("scrollToBottom");
         }
     }
 
@@ -205,6 +210,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     {
         if (hubConnection is not null && !string.IsNullOrWhiteSpace(message) && canSendMessages)
         {
+            RequestScrollToBottom();
             await hubConnection.SendAsync("SendMessage", userId, userName, message, selectedUserId, isGroupChat);
         }
     }
@@ -276,6 +282,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         typingUser = "";
         await PersistSelection();
         await MarkMessagesAsRead(selectedUser.Id);
+        RequestScrollToBottom();
     }
 
     private async Task SelectGroup()
@@ -285,6 +292,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         isGroupChat = true;
         typingUser = "";
         await PersistSelection();
+        RequestScrollToBottom();
     }
 
     private bool IsTypingForActiveChat(string senderId, string? recipientId, bool isGroup)
@@ -433,5 +441,12 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         }
 
         hasAppliedStoredSelection = true;
+        RequestScrollToBottom();
+    }
+
+    private void RequestScrollToBottom()
+    {
+        shouldScrollToBottom = true;
+        _ = InvokeAsync(StateHasChanged);
     }
 }
