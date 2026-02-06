@@ -4,18 +4,34 @@
             <h3>@SelectedChatName</h3>
             <span class="chat-mode">@ChatModeLabel</span>
         </div>
-        <span class="online-count">@OnlineUsers.Count online</span>
+        <div class="chat-header-actions">
+            <button class="mobile-userlist-toggle"
+                    type="button"
+                    aria-label="Show contacts"
+                    aria-expanded="@IsMobileUserListOpen"
+                    @onclick="ToggleMobileUserList">
+                Contacts
+            </button>
+            <span class="online-count">@OnlineUsers.Count online</span>
+        </div>
     </div>
 
     <div class="chat-main">
-        <div class="sidebar">
+        <div class="mobile-overlay @(IsMobileUserListOpen ? "is-visible" : "")" @onclick="CloseMobileUserList"></div>
+        <div class="sidebar @(IsMobileUserListOpen ? "is-open" : "")">
+            <div class="sidebar-header">
+                <span>Contacts</span>
+                <button type="button" class="sidebar-close" @onclick="CloseMobileUserList" aria-label="Close contacts">
+                    ✕
+                </button>
+            </div>
             <UserList Users="OnlineUsers"
                       CurrentUserId="CurrentUserId"
                       SelectedUserId="SelectedUserId"
                       IsGroupSelected="IsGroupChat"
                       UnreadCounts="UnreadCounts"
-                      OnSelectUser="OnSelectUser"
-                      OnSelectGroup="OnSelectGroup" />
+                      OnSelectUser="HandleSelectUser"
+                      OnSelectGroup="HandleSelectGroup" />
         </div>
 
         <div class="chat-content">
