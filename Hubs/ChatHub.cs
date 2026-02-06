@@ -7,10 +7,12 @@ namespace blazorchat.Hubs;
 public class ChatHub : Hub
 {
     private readonly IChatService _chatService;
+    private readonly FileUploadService _fileUploadService;
 
-    public ChatHub(IChatService chatService)
+    public ChatHub(IChatService chatService, FileUploadService fileUploadService)
     {
         _chatService = chatService;
+        _fileUploadService = fileUploadService;
     }
 
     public override async Task OnConnectedAsync()
@@ -43,7 +45,7 @@ public class ChatHub : Hub
         _chatService.AddUser(user);
         
         // Send existing messages to the new user
-        var messages = _chatService.GetMessagesForUser(userId);
+        var messages = await _chatService.GetMessagesForUserAsync(userId);
         await Clients.Caller.SendAsync("LoadMessages", messages);
         
         // Notify all users about the new connection
@@ -66,7 +68,7 @@ public class ChatHub : Hub
             Timestamp = DateTime.UtcNow
         };
 
-        _chatService.AddMessage(chatMessage);
+        await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
             await Clients.All.SendAsync("ReceiveMessage", chatMessage);
@@ -88,19 +90,21 @@ public class ChatHub : Hub
 
     public async Task SendImage(string senderId, string senderName, string imageData, string fileName, string? recipientId, bool isGroup)
     {
+        var fileUrl = await _fileUploadService.SaveFileAsync(imageData, fileName, MessageType.Image);
         var chatMessage = new ChatMessage
         {
             User = senderName,
             SenderId = senderId,
             RecipientId = recipientId,
             IsGroup = isGroup,
-            Content = imageData,
+            Content = fileUrl,
+            FileUrl = fileUrl,
             Type = MessageType.Image,
             FileName = fileName,
             Timestamp = DateTime.UtcNow
         };
 
-        _chatService.AddMessage(chatMessage);
+        await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
             await Clients.All.SendAsync("ReceiveMessage", chatMessage);
@@ -122,19 +126,22 @@ public class ChatHub : Hub
 
     public async Task SendVoiceMessage(string senderId, string senderName, string audioData, int duration, string? recipientId, bool isGroup)
     {
+        var voiceFileName = $"voice_{Guid.NewGuid()}.webm";
+        var fileUrl = await _fileUploadService.SaveFileAsync(audioData, voiceFileName, MessageType.Voice);
         var chatMessage = new ChatMessage
         {
             User = senderName,
             SenderId = senderId,
             RecipientId = recipientId,
             IsGroup = isGroup,
-            Content = audioData,
+            Content = fileUrl,
+            FileUrl = fileUrl,
             Type = MessageType.Voice,
             Duration = duration,
             Timestamp = DateTime.UtcNow
         };
 
-        _chatService.AddMessage(chatMessage);
+        await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
             await Clients.All.SendAsync("ReceiveMessage", chatMessage);
@@ -156,19 +163,21 @@ public class ChatHub : Hub
 
     public async Task SendFile(string senderId, string senderName, string fileData, string fileName, string? recipientId, bool isGroup)
     {
+        var fileUrl = await _fileUploadService.SaveFileAsync(fileData, fileName, MessageType.File);
         var chatMessage = new ChatMessage
         {
             User = senderName,
             SenderId = senderId,
             RecipientId = recipientId,
             IsGroup = isGroup,
-            Content = fileData,
+            Content = fileUrl,
+            FileUrl = fileUrl,
             Type = MessageType.File,
             FileName = fileName,
             Timestamp = DateTime.UtcNow
         };
 
-        _chatService.AddMessage(chatMessage);
+        await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
             await Clients.All.SendAsync("ReceiveMessage", chatMessage);
@@ -211,7 +220,7 @@ public class ChatHub : Hub
 
     public async Task MessageRead(string messageId)
     {
-        _chatService.MarkMessageAsRead(messageId);
+        await _chatService.MarkMessageAsReadAsync(messageId);
         await Clients.All.SendAsync("MessageRead", messageId);
     }
 

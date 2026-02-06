@@ -1,5 +1,7 @@
+using blazorchat.Data;
 using blazorchat.Hubs;
 using blazorchat.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,7 @@ builder.Services.AddSignalR(options =>
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);
     options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
     options.HandshakeTimeout = TimeSpan.FromSeconds(30);
-    options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB
+    options.MaximumReceiveMessageSize = 30 * 1024 * 1024; // 30 MB to handle base64 payloads
     options.StreamBufferCapacity = 20;
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
 });
@@ -29,6 +31,13 @@ builder.Services.AddSignalR(options =>
 // Register application services
 builder.Services.AddSingleton<IChatService, ChatService>();
 builder.Services.AddScoped<FileUploadService>();
+builder.Services.AddHostedService<ChatCleanupService>();
+
+builder.Services.AddDbContextFactory<ChatDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("ChatDatabase");
+    options.UseSqlServer(connectionString);
+});
 
 // Add CORS for WebForm integration
 builder.Services.AddCors(options =>
@@ -56,6 +65,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatDbContext>>();
+    await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+    await dbContext.Database.EnsureCreatedAsync();
+}
 
 //app.UsePathBase("/chat");
 // Configure the HTTP request pipeline.

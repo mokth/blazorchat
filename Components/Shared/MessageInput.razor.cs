@@ -6,6 +6,8 @@ namespace blazorchat.Components.Shared;
 
 public partial class MessageInput : ComponentBase
 {
+    private const long MaxImageBytes = 5 * 1024 * 1024;
+    private const long MaxFileBytes = 20 * 1024 * 1024;
     [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter] public bool CanSend { get; set; } = true;
@@ -58,7 +60,7 @@ public partial class MessageInput : ComponentBase
 
     private async Task OnImageSelected(ChangeEventArgs e)
     {
-        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", imageInputRef);
+        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", imageInputRef, MaxImageBytes, "5 MB");
         if (!string.IsNullOrEmpty(files))
         {
             var parts = files.Split('|');
@@ -71,7 +73,7 @@ public partial class MessageInput : ComponentBase
 
     private async Task OnFileSelected(ChangeEventArgs e)
     {
-        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", fileInputRef);
+        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", fileInputRef, MaxFileBytes, "20 MB");
         if (!string.IsNullOrEmpty(files))
         {
             var parts = files.Split('|');
