@@ -1,18 +1,19 @@
+@using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
 
 <div class="message-input-container">
-    @if (isUploading)
-    {
-        <div class="upload-progress">
-            <span class="spinner-border spinner-border-sm"></span>
-            <span class="ms-2">Uploading...</span>
-        </div>
-    }
     <div class="input-actions">
-        <button class="btn-icon" @onclick="HandleImageUpload" title="Send image" disabled="@isUploading">
+        <button class="btn-icon" @onclick="HandleImageUpload" title="Send image">
             📷
         </button>
-        <button class="btn-icon" @onclick="ToggleVoiceRecorder" title="Record voice" disabled="@isUploading">
+        <button class="btn-icon"
+                title="Hold to record voice"
+                @onpointerdown="HandleVoicePress"
+                @onpointerup="HandleVoiceRelease"
+                @onpointerleave="HandleVoiceRelease"
+                @onpointercancel="HandleVoiceRelease"
+                @onkeydown="HandleVoiceKeyDown"
+                @onkeyup="HandleVoiceKeyUp">
             @if (isRecording)
             {
                 <span>⏹️</span>
@@ -22,7 +23,7 @@
                 <span>🎤</span>
             }
         </button>
-        <button class="btn-icon" @onclick="HandleFileUpload" title="Attach file" disabled="@isUploading">
+        <button class="btn-icon" @onclick="HandleFileUpload" title="Attach file">
             📎
         </button>
     </div>
@@ -63,8 +64,9 @@
     private ElementReference imageInputRef;
     private ElementReference fileInputRef;
     private bool isRecording = false;
+    private bool isRecordingRequested = false;
+    private bool stopRequested = false;
     private int recordingDuration = 0;
-    private bool isUploading = false;
     private System.Threading.Timer? recordingTimer;
 
     private async Task SendCurrentMessage()
@@ -101,74 +103,46 @@
 
     private async Task OnImageSelected(ChangeEventArgs e)
     {
-        isUploading = true;
-        StateHasChanged();
-
-        try
+        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", imageInputRef);
+        if (!string.IsNullOrEmpty(files))
         {
-            var result = await JSRuntime.InvokeAsync<string>("readFileAsBase64", imageInputRef);
-            if (!string.IsNullOrEmpty(result))
+            var parts = files.Split('|');
+            if (parts.Length == 2)
             {
-                var parts = result.Split('|');
-                if (parts.Length == 2)
-                {
-                    await OnSendImage.InvokeAsync((parts[0], parts[1]));
-                }
+                await OnSendImage.InvokeAsync((parts[0], parts[1]));
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error reading image: {ex.Message}");
-        }
-        finally
-        {
-            isUploading = false;
-            StateHasChanged();
         }
     }
 
     private async Task OnFileSelected(ChangeEventArgs e)
     {
-        isUploading = true;
-        StateHasChanged();
-
-        try
+        var files = await JSRuntime.InvokeAsync<string>("readFileAsBase64", fileInputRef);
+        if (!string.IsNullOrEmpty(files))
         {
-            var result = await JSRuntime.InvokeAsync<string>("readFileAsBase64", fileInputRef);
-            if (!string.IsNullOrEmpty(result))
+            var parts = files.Split('|');
+            if (parts.Length == 2)
             {
-                var parts = result.Split('|');
-                if (parts.Length == 2)
-                {
-                    await OnSendFile.InvokeAsync((parts[0], parts[1]));
-                }
+                await OnSendFile.InvokeAsync((parts[0], parts[1]));
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error reading file: {ex.Message}");
-        }
-        finally
-        {
-            isUploading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleVoiceRecorder()
-    {
-        if (!isRecording)
-        {
-            await StartRecording();
-        }
-        else
-        {
-            await StopRecording();
         }
     }
 
     private async Task StartRecording()
     {
+        if (isRecording)
+        {
+            return;
+        }
+
+        var started = await JSRuntime.InvokeAsync<bool>("startVoiceRecording");
+        if (!started)
+        {
+            isRecordingRequested = false;
+            stopRequested = false;
+            isRecording = false;
+            return;
+        }
+
         isRecording = true;
         recordingDuration = 0;
         
@@ -184,12 +158,22 @@
             }
         }, null, 1000, 1000);
 
-        await JSRuntime.InvokeVoidAsync("startVoiceRecording");
+        if (!isRecordingRequested || stopRequested)
+        {
+            await StopRecording();
+        }
     }
 
     private async Task StopRecording()
     {
+        if (!isRecording)
+        {
+            return;
+        }
+
         isRecording = false;
+        isRecordingRequested = false;
+        stopRequested = false;
         recordingTimer?.Dispose();
         
         var audioData = await JSRuntime.InvokeAsync<string>("stopVoiceRecording");
@@ -199,5 +183,46 @@
         }
         
         recordingDuration = 0;
+    }
+
+    private async Task HandleVoicePress()
+    {
+        if (isRecordingRequested)
+        {
+            return;
+        }
+
+        isRecordingRequested = true;
+        stopRequested = false;
+        await StartRecording();
+    }
+
+    private async Task HandleVoiceRelease()
+    {
+        isRecordingRequested = false;
+
+        if (isRecording)
+        {
+            await StopRecording();
+            return;
+        }
+
+        stopRequested = true;
+    }
+
+    private async Task HandleVoiceKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key is " " or "Enter")
+        {
+            await HandleVoicePress();
+        }
+    }
+
+    private async Task HandleVoiceKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key is " " or "Enter")
+        {
+            await HandleVoiceRelease();
+        }
     }
 }
