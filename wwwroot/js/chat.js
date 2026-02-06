@@ -76,3 +76,41 @@ if (document.readyState === 'loading') {
 window.onConnectionStatusChange = function(isConnected) {
     console.log('Connection status:', isConnected ? 'Connected' : 'Disconnected');
 };
+
+window.registerRefreshWarning = function(message) {
+    window.onbeforeunload = function(event) {
+        const warningMessage = message || 'Are you sure you want to refresh?';
+        event.preventDefault();
+        event.returnValue = warningMessage;
+        return warningMessage;
+    };
+};
+
+window.clearRefreshWarning = function() {
+    window.onbeforeunload = null;
+};
+
+window.chatStorage = {
+    key: 'blazorchat.user',
+    saveUser: function(user) {
+        if (!user) {
+            return;
+        }
+        localStorage.setItem(this.key, JSON.stringify(user));
+    },
+    loadUser: function() {
+        const data = localStorage.getItem(this.key);
+        if (!data) {
+            return null;
+        }
+        try {
+            return JSON.parse(data);
+        } catch (error) {
+            console.error('Unable to parse stored chat user.', error);
+            return null;
+        }
+    },
+    clearUser: function() {
+        localStorage.removeItem(this.key);
+    }
+};
