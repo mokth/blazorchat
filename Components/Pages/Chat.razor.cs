@@ -25,6 +25,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private Dictionary<string, int> unreadCounts = new();
     private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
     private bool hasAppliedStoredSelection = false;
+    private bool hasRegisteredRefreshWarning = false;
 
     private sealed class StoredChatUser
     {
@@ -42,6 +43,11 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     protected override async Task OnInitializedAsync()
     {
         // Check for URL parameters (for WebForm integration)
+      
+    }
+
+    private async Task InitConnection()
+    {
         var uri = new Uri(Navigation.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
 
@@ -79,7 +85,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
                 // Rejoin the chat after reconnection
                 await hubConnection.SendAsync("UserConnected", userId, userName);
             }
-            InvokeAsync(StateHasChanged);
+           await InvokeAsync(StateHasChanged);
         };
 
         hubConnection.Closed += async error =>
@@ -102,7 +108,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
                     Console.WriteLine($"Error restarting connection: {ex.Message}");
                 }
             }
-            InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged);
         };
 
         hubConnection.On<List<ChatMessage>>("LoadMessages", loadedMessages =>
@@ -110,7 +116,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             messages = loadedMessages;
             UpdateUnreadCounts();
             _ = InvokeAsync(ApplyStoredSelectionIfReadyAsync);
-            InvokeAsync(StateHasChanged);
+             InvokeAsync(StateHasChanged);
         });
 
         hubConnection.On<ChatMessage>("ReceiveMessage", message =>
@@ -173,8 +179,9 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         {
             return;
         }
-
+        await InitConnection();
         await JSRuntime.InvokeVoidAsync("registerRefreshWarning", RefreshWarningMessage);
+        hasRegisteredRefreshWarning = true;
 
         var storedUser = await JSRuntime.InvokeAsync<StoredChatUser?>("chatStorage.loadUser");
         if (storedUser is not null
@@ -378,7 +385,25 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         typingTimer?.Dispose();
-        await JSRuntime.InvokeVoidAsync("clearRefreshWarning");
+
+        // During prerender/static rendering, JS interop isn't available. Only clear the warning
+        // if we successfully registered it after the first interactive render.
+        if (hasRegisteredRefreshWarning)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("clearRefreshWarning");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Ignore: circuit already disconnected during refresh/navigation.
+            }
+            catch (InvalidOperationException)
+            {
+                // Ignore: JS runtime not available (e.g., circuit already gone).
+            }
+        }
+
         if (hubConnection is not null)
         {
             await hubConnection.DisposeAsync();
