@@ -1,11 +1,25 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace blazorchat.Models;
 
 public class User
 {
-    public string Id { get; set; } = string.Empty;
+    [Key]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    
+    [Required]
+    [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
+    
+    [NotMapped] // ConnectionId is for active sessions only, not persisted
     public string ConnectionId { get; set; } = string.Empty;
+    
+    [NotMapped] // IsOnline is derived from active connections, not persisted
     public bool IsOnline { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+    
     public string? AvatarUrl { get; set; }
 }

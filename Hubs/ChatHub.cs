@@ -25,28 +25,49 @@ public class ChatHub : Hub
         var user = _chatService.GetUserByConnectionId(Context.ConnectionId);
         if (user != null)
         {
-            _chatService.RemoveUser(user.Id);
+            _chatService.RemoveUserSession(user.Id);
+            await _chatService.UpdateUserLastSeenAsync(user.Id);
             await Clients.All.SendAsync("UserDisconnected", user.Name);
             await SendUpdatedUserLists();
         }
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task UserConnected(string userId, string userName)
+    public async Task UserConnected(string userName)
     {
-        var user = new User
+        // Look up user in database by name
+        var dbUser = await _chatService.GetUserByNameAsync(userName);
+        
+        // If user doesn't exist, create new user in database
+        if (dbUser == null)
         {
-            Id = userId,
-            Name = userName,
+            dbUser = await _chatService.CreateUserAsync(userName);
+        }
+        else
+        {
+            // Update last seen for existing user
+            await _chatService.UpdateUserLastSeenAsync(dbUser.Id);
+        }
+        
+        // Create session user with connection info
+        var sessionUser = new User
+        {
+            Id = dbUser.Id,
+            Name = dbUser.Name,
             ConnectionId = Context.ConnectionId,
-            IsOnline = true
+            IsOnline = true,
+            LastSeen = DateTime.UtcNow,
+            AvatarUrl = dbUser.AvatarUrl
         };
 
-        _chatService.AddUser(user);
+        _chatService.AddUserSession(sessionUser);
         
-        // Send existing messages to the new user
-        var messages = await _chatService.GetMessagesForUserAsync(userId);
+        // Send existing messages to the user
+        var messages = await _chatService.GetMessagesForUserAsync(dbUser.Id);
         await Clients.Caller.SendAsync("LoadMessages", messages);
+        
+        // Send user ID back to client
+        await Clients.Caller.SendAsync("UserIdAssigned", dbUser.Id);
         
         // Notify all users about the new connection
         await Clients.All.SendAsync("UserConnected", userName);
@@ -80,7 +101,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
@@ -116,7 +137,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
@@ -153,7 +174,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
@@ -189,7 +210,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
@@ -210,7 +231,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Client(recipient.ConnectionId)
@@ -250,7 +271,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
@@ -293,7 +314,7 @@ public class ChatHub : Hub
             return;
         }
 
-        var recipient = _chatService.GetUserById(recipientId);
+        var recipient = _chatService.GetUserSessionById(recipientId);
         if (recipient != null)
         {
             await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)

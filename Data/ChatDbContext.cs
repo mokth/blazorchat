@@ -10,6 +10,7 @@ public class ChatDbContext : DbContext
     }
 
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +22,15 @@ public class ChatDbContext : DbContext
 
         modelBuilder.Entity<ChatMessage>()
             .HasIndex(message => new { message.IsGroup, message.Timestamp });
+
+        modelBuilder.Entity<User>()
+            .HasKey(user => user.Id);
+
+        modelBuilder.Entity<User>()
+            .HasIndex(user => user.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(user => user.LastSeen);
     }
 }
