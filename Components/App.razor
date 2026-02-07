@@ -27,53 +27,6 @@
         window.clearRefreshWarning = window.clearRefreshWarning || function() {
             window.onbeforeunload = null;
         };
-
-        window.chatStorage = window.chatStorage || {
-            key: 'blazorchat.user',
-            selectionKey: 'blazorchat.selection',
-            saveUser: function(user) {
-                if (!user) {
-                    return;
-                }
-                localStorage.setItem(this.key, JSON.stringify(user));
-            },
-            loadUser: function() {
-                const data = localStorage.getItem(this.key);
-                if (!data) {
-                    return null;
-                }
-                try {
-                    return JSON.parse(data);
-                } catch (error) {
-                    console.error('Unable to parse stored chat user.', error);
-                    return null;
-                }
-            },
-            clearUser: function() {
-                localStorage.removeItem(this.key);
-            },
-            saveSelection: function(selection) {
-                if (!selection) {
-                    return;
-                }
-                localStorage.setItem(this.selectionKey, JSON.stringify(selection));
-            },
-            loadSelection: function() {
-                const data = localStorage.getItem(this.selectionKey);
-                if (!data) {
-                    return null;
-                }
-                try {
-                    return JSON.parse(data);
-                } catch (error) {
-                    console.error('Unable to parse stored chat selection.', error);
-                    return null;
-                }
-            },
-            clearSelection: function() {
-                localStorage.removeItem(this.selectionKey);
-            }
-        };
     </script>
     <script src="js/chat.js"></script>
     <script src="js/voiceRecorder.js"></script>

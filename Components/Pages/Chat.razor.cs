@@ -15,7 +15,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private List<ChatMessage> messages = new();
     private List<User> onlineUsers = new();
     private string userName = "";
-    private string userId = Guid.NewGuid().ToString();
+    private string userId = "";
     private bool isJoined = false;
     private string typingUser = "";
     private System.Threading.Timer? typingTimer;
@@ -24,21 +24,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private bool isGroupChat = false;
     private Dictionary<string, int> unreadCounts = new();
     private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
-    private bool hasAppliedStoredSelection = false;
     private bool hasRegisteredRefreshWarning = false;
-
-    private sealed class StoredChatUser
-    {
-        public string UserId { get; set; } = "";
-        public string UserName { get; set; } = "";
-    }
-
-    private sealed class StoredChatSelection
-    {
-        public string? SelectedUserId { get; set; }
-        public string SelectedChatName { get; set; } = "";
-        public bool IsGroupChat { get; set; }
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -51,13 +37,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         var uri = new Uri(Navigation.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
 
-        var userIdParam = query["userId"];
         var userNameParam = query["userName"];
-
-        if (!string.IsNullOrEmpty(userIdParam))
-        {
-            userId = userIdParam;
-        }
 
         if (!string.IsNullOrEmpty(userNameParam))
         {
@@ -83,7 +63,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             if (isJoined && !string.IsNullOrEmpty(userName))
             {
                 // Rejoin the chat after reconnection
-                await hubConnection.SendAsync("UserConnected", userId, userName);
+                await hubConnection.SendAsync("UserConnected", userName);
             }
            await InvokeAsync(StateHasChanged);
         };
@@ -100,7 +80,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
                     await hubConnection.StartAsync();
                     if (isJoined && !string.IsNullOrEmpty(userName))
                     {
-                        await hubConnection.SendAsync("UserConnected", userId, userName);
+                        await hubConnection.SendAsync("UserConnected", userName);
                     }
                 }
                 catch (Exception ex)
@@ -111,12 +91,18 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             await InvokeAsync(StateHasChanged);
         };
 
+        hubConnection.On<string>("UserIdAssigned", assignedUserId =>
+        {
+            userId = assignedUserId;
+            Console.WriteLine($"User ID assigned: {userId}");
+            InvokeAsync(StateHasChanged);
+        });
+
         hubConnection.On<List<ChatMessage>>("LoadMessages", loadedMessages =>
         {
             messages = loadedMessages;
             UpdateUnreadCounts();
-            _ = InvokeAsync(ApplyStoredSelectionIfReadyAsync);
-             InvokeAsync(StateHasChanged);
+            InvokeAsync(StateHasChanged);
         });
 
         hubConnection.On<ChatMessage>("ReceiveMessage", message =>
@@ -149,7 +135,6 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         hubConnection.On<List<User>>("UpdateUserList", users =>
         {
             onlineUsers = users;
-            _ = InvokeAsync(ApplyStoredSelectionIfReadyAsync);
             InvokeAsync(StateHasChanged);
         });
 
@@ -211,16 +196,6 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         await InitConnection();
         await JSRuntime.InvokeVoidAsync("registerRefreshWarning", RefreshWarningMessage);
         hasRegisteredRefreshWarning = true;
-
-        var storedUser = await JSRuntime.InvokeAsync<StoredChatUser?>("chatStorage.loadUser");
-        if (storedUser is not null
-            && !string.IsNullOrWhiteSpace(storedUser.UserId)
-            && !string.IsNullOrWhiteSpace(storedUser.UserName))
-        {
-            userId = storedUser.UserId;
-            userName = storedUser.UserName;
-            await InvokeAsync(StateHasChanged);
-        }
     }
 
     private async Task JoinChat()
@@ -228,12 +203,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         if (!string.IsNullOrWhiteSpace(userName) && hubConnection is not null)
         {
             isJoined = true;
-            await hubConnection.SendAsync("UserConnected", userId, userName);
-            await JSRuntime.InvokeVoidAsync("chatStorage.saveUser", new StoredChatUser
-            {
-                UserId = userId,
-                UserName = userName
-            });
+            await hubConnection.SendAsync("UserConnected", userName);
         }
     }
 
@@ -310,7 +280,6 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         selectedChatName = selectedUser.Name;
         isGroupChat = false;
         typingUser = "";
-        await PersistSelection();
         await MarkMessagesAsRead(selectedUser.Id);
         await InvokeAsync(StateHasChanged);
         await Task.Delay(100); // Wait for UI to render
@@ -323,7 +292,6 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         selectedChatName = "Group Chat";
         isGroupChat = true;
         typingUser = "";
-        await PersistSelection();
         await InvokeAsync(StateHasChanged);
         await Task.Delay(100); // Wait for UI to render
         await JSRuntime.InvokeVoidAsync("scrollToBottom");
@@ -443,56 +411,6 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         {
             await hubConnection.DisposeAsync();
         }
-    }
-
-    private async Task PersistSelection()
-    {
-        await JSRuntime.InvokeVoidAsync("chatStorage.saveSelection", new StoredChatSelection
-        {
-            SelectedUserId = selectedUserId,
-            SelectedChatName = selectedChatName,
-            IsGroupChat = isGroupChat
-        });
-    }
-
-    private async Task ApplyStoredSelectionIfReadyAsync()
-    {
-        if (hasAppliedStoredSelection || !isJoined)
-        {
-            return;
-        }
-
-        var storedSelection = await JSRuntime.InvokeAsync<StoredChatSelection?>("chatStorage.loadSelection");
-
-        if (storedSelection is null)
-        {
-            hasAppliedStoredSelection = true;
-            return;
-        }
-
-        if (storedSelection.IsGroupChat)
-        {
-            selectedUserId = null;
-            selectedChatName = "Group Chat";
-            isGroupChat = true;
-            typingUser = "";
-        }
-        else if (!string.IsNullOrWhiteSpace(storedSelection.SelectedUserId))
-        {
-            var selectedUser = onlineUsers.FirstOrDefault(user => user.Id == storedSelection.SelectedUserId);
-            if (selectedUser is not null)
-            {
-                selectedUserId = selectedUser.Id;
-                selectedChatName = string.IsNullOrWhiteSpace(storedSelection.SelectedChatName)
-                    ? selectedUser.Name
-                    : storedSelection.SelectedChatName;
-                isGroupChat = false;
-                typingUser = "";
-                _ = MarkMessagesAsRead(selectedUser.Id);
-            }
-        }
-
-        hasAppliedStoredSelection = true;
     }
 
     private async Task HandleReplyMessage((string messageId, string replyToId) data)

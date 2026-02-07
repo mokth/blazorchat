@@ -9,7 +9,7 @@ public class ChatService : IChatService
 {
     private readonly IDbContextFactory<ChatDbContext> _dbContextFactory;
     private readonly IConfiguration _configuration;
-    private readonly ConcurrentDictionary<string, User> _users = new();
+    private readonly ConcurrentDictionary<string, User> _userSessions = new();
 
     public ChatService(IDbContextFactory<ChatDbContext> dbContextFactory, IConfiguration configuration)
     {
@@ -49,29 +49,74 @@ public class ChatService : IChatService
             .ToListAsync();
     }
 
-    public void AddUser(User user)
+    // Database user operations
+    public async Task<User?> GetUserByNameAsync(string userName)
     {
-        _users.TryAdd(user.Id, user);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Name == userName);
     }
 
-    public void RemoveUser(string userId)
+    public async Task<User?> GetUserByIdAsync(string userId)
     {
-        _users.TryRemove(userId, out _);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        return await dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+    }
+
+    public async Task<User> CreateUserAsync(string userName)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var user = new User
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = userName,
+            CreatedAt = DateTime.UtcNow,
+            LastSeen = DateTime.UtcNow
+        };
+        
+        dbContext.Users.Add(user);
+        await dbContext.SaveChangesAsync();
+        return user;
+    }
+
+    public async Task UpdateUserLastSeenAsync(string userId)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user != null)
+        {
+            user.LastSeen = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync();
+        }
+    }
+
+    // In-memory session management
+    public void AddUserSession(User user)
+    {
+        _userSessions.TryAdd(user.Id, user);
+    }
+
+    public void RemoveUserSession(string userId)
+    {
+        _userSessions.TryRemove(userId, out _);
     }
 
     public List<User> GetOnlineUsers()
     {
-        return _users.Values.Where(u => u.IsOnline).ToList();
+        return _userSessions.Values.Where(u => u.IsOnline).ToList();
     }
 
     public User? GetUserByConnectionId(string connectionId)
     {
-        return _users.Values.FirstOrDefault(u => u.ConnectionId == connectionId);
+        return _userSessions.Values.FirstOrDefault(u => u.ConnectionId == connectionId);
     }
 
-    public User? GetUserById(string userId)
+    public User? GetUserSessionById(string userId)
     {
-        _users.TryGetValue(userId, out var user);
+        _userSessions.TryGetValue(userId, out var user);
         return user;
     }
 
