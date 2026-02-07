@@ -13,4 +13,7 @@ public interface IChatService
     User? GetUserByConnectionId(string connectionId);
     User? GetUserById(string userId);
     Task MarkMessageAsReadAsync(string messageId);
+    Task<ChatMessage?> GetMessageByIdAsync(string messageId);
+    Task DeleteMessageAsync(string messageId);
+    Task DeleteChatAsync(string userId, string? otherUserId, bool isGroup);
 }

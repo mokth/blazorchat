@@ -170,6 +170,35 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             }
         });
 
+        hubConnection.On<string>("MessageDeleted", messageId =>
+        {
+            var message = messages.FirstOrDefault(m => m.Id == messageId);
+            if (message != null)
+            {
+                messages.Remove(message);
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        hubConnection.On<string, string?, bool>("ChatCleared", (senderId, otherUserId, isGroup) =>
+        {
+            if (isGroup && isGroupChat)
+            {
+                messages.RemoveAll(m => m.IsGroup);
+                InvokeAsync(StateHasChanged);
+            }
+            else if (!isGroup && !string.IsNullOrWhiteSpace(otherUserId))
+            {
+                if (selectedUserId == otherUserId || userId == otherUserId)
+                {
+                    messages.RemoveAll(m => !m.IsGroup &&
+                        ((m.SenderId == userId && m.RecipientId == otherUserId) ||
+                         (m.SenderId == otherUserId && m.RecipientId == userId)));
+                    InvokeAsync(StateHasChanged);
+                }
+            }
+        });
+
         await hubConnection.StartAsync();
     }
 
@@ -283,6 +312,9 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         typingUser = "";
         await PersistSelection();
         await MarkMessagesAsRead(selectedUser.Id);
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(100); // Wait for UI to render
+        await JSRuntime.InvokeVoidAsync("scrollToBottom");
     }
 
     private async Task SelectGroup()
@@ -292,6 +324,9 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         isGroupChat = true;
         typingUser = "";
         await PersistSelection();
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(100); // Wait for UI to render
+        await JSRuntime.InvokeVoidAsync("scrollToBottom");
     }
 
     private bool IsTypingForActiveChat(string senderId, string? recipientId, bool isGroup)
@@ -458,5 +493,47 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         }
 
         hasAppliedStoredSelection = true;
+    }
+
+    private async Task HandleReplyMessage((string messageId, string replyToId) data)
+    {
+        var replyToMessage = messages.FirstOrDefault(m => m.Id == data.replyToId);
+        if (replyToMessage == null || hubConnection is null)
+        {
+            return;
+        }
+
+        // data.messageId is actually the message content (text), and data.replyToId is the message being replied to
+        await hubConnection.SendAsync("ReplyMessage", userId, userName, data.messageId, selectedUserId, isGroupChat, data.replyToId);
+    }
+
+    private async Task HandleForwardMessage((string messageId, string? recipientId, bool isGroup) data)
+    {
+        if (hubConnection is null)
+        {
+            return;
+        }
+
+        await hubConnection.SendAsync("ForwardMessage", userId, userName, data.messageId, data.recipientId, data.isGroup);
+    }
+
+    private async Task HandleDeleteMessage(string messageId)
+    {
+        if (hubConnection is null)
+        {
+            return;
+        }
+
+        await hubConnection.SendAsync("DeleteMessage", messageId, userId);
+    }
+
+    private async Task HandleClearChat()
+    {
+        if (hubConnection is null)
+        {
+            return;
+        }
+
+        await hubConnection.SendAsync("ClearChat", userId, selectedUserId, isGroupChat);
     }
 }

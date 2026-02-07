@@ -53,6 +53,10 @@
             OnSendImage="EventCallback.Factory.Create<(string, string)>(this, SendImage)"
             OnSendVoice="EventCallback.Factory.Create<(string, int)>(this, SendVoiceMessage)"
             OnSendFile="EventCallback.Factory.Create<(string, string)>(this, SendFile)"
-            OnTyping="EventCallback.Factory.Create(this, HandleTyping)" />
+            OnTyping="EventCallback.Factory.Create(this, HandleTyping)"
+            OnReplyMessage="EventCallback.Factory.Create<(string, string)>(this, HandleReplyMessage)"
+            OnForwardMessage="EventCallback.Factory.Create<(string, string?, bool)>(this, HandleForwardMessage)"
+            OnDeleteMessage="EventCallback.Factory.Create<string>(this, HandleDeleteMessage)"
+            OnClearChat="EventCallback.Factory.Create(this, HandleClearChat)" />
     }
 </div>

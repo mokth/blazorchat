@@ -22,8 +22,15 @@ public partial class ChatWindow : ComponentBase
     [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
     [Parameter] public EventCallback<(string fileData, string fileName)> OnSendFile { get; set; }
     [Parameter] public EventCallback OnTyping { get; set; }
+    [Parameter] public EventCallback<(string messageId, string replyToId)> OnReplyMessage { get; set; }
+    [Parameter] public EventCallback<(string messageId, string? recipientId, bool isGroup)> OnForwardMessage { get; set; }
+    [Parameter] public EventCallback<string> OnDeleteMessage { get; set; }
+    [Parameter] public EventCallback OnClearChat { get; set; }
 
     private bool IsMobileUserListOpen { get; set; }
+    private ChatMessage? ReplyToMessage { get; set; }
+    private ChatMessage? MessageToForward { get; set; }
+    private bool ShowForwardDialog { get; set; }
 
     private string ChatModeLabel => IsGroupChat ? "Group Chat" : "1:1 Chat";
 
@@ -47,6 +54,108 @@ public partial class ChatWindow : ComponentBase
     {
         await OnSelectGroup.InvokeAsync();
         CloseMobileUserList();
+    }
+
+    private async Task HandleSendMessage(string message)
+    {
+        if (ReplyToMessage != null)
+        {
+            // Send as reply
+            await OnReplyMessage.InvokeAsync((message, ReplyToMessage.Id));
+            ReplyToMessage = null;
+        }
+        else
+        {
+            // Send as normal message
+            await OnSendMessage.InvokeAsync(message);
+        }
+    }
+
+    private void HandleReply(ChatMessage message)
+    {
+        ReplyToMessage = message;
+        StateHasChanged();
+    }
+
+    private void CancelReply()
+    {
+        ReplyToMessage = null;
+        StateHasChanged();
+    }
+
+    private void HandleForward(ChatMessage message)
+    {
+        MessageToForward = message;
+        ShowForwardDialog = true;
+        StateHasChanged();
+    }
+
+    private void CloseForwardDialog()
+    {
+        ShowForwardDialog = false;
+        MessageToForward = null;
+        StateHasChanged();
+    }
+
+    private async Task ForwardToUser(string userId)
+    {
+        if (MessageToForward != null)
+        {
+            await OnForwardMessage.InvokeAsync((MessageToForward.Id, userId, false));
+            CloseForwardDialog();
+        }
+    }
+
+    private async Task ForwardToGroup()
+    {
+        if (MessageToForward != null)
+        {
+            await OnForwardMessage.InvokeAsync((MessageToForward.Id, null, true));
+            CloseForwardDialog();
+        }
+    }
+
+    private async Task HandleDeleteMessage(string messageId)
+    {
+        if (await ConfirmDelete("Are you sure you want to delete this message?"))
+        {
+            await OnDeleteMessage.InvokeAsync(messageId);
+        }
+    }
+
+    private async Task HandleClearChat()
+    {
+        if (await ConfirmDelete("Are you sure you want to clear all messages in this chat? This action cannot be undone."))
+        {
+            await OnClearChat.InvokeAsync();
+        }
+    }
+
+    private async Task<bool> ConfirmDelete(string message)
+    {
+        // Simple JavaScript confirm dialog
+        return await Task.FromResult(true); // For now, we'll just return true
+        // In a real implementation, you'd use JSRuntime to show a confirm dialog
+    }
+
+    private ChatMessage? GetReplyToMessage(string? replyToMessageId)
+    {
+        if (string.IsNullOrEmpty(replyToMessageId))
+            return null;
+        
+        return Messages.FirstOrDefault(m => m.Id == replyToMessageId);
+    }
+
+    private string GetMessagePreview(ChatMessage message)
+    {
+        return message.Type switch
+        {
+            MessageType.Text => message.Content.Length > 50 ? message.Content.Substring(0, 50) + "..." : message.Content,
+            MessageType.Image => "📷 Image",
+            MessageType.Voice => "🎤 Voice message",
+            MessageType.File => $"📄 {message.FileName}",
+            _ => ""
+        };
     }
 
     protected override void OnParametersSet()

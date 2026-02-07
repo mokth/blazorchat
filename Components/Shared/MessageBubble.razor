@@ -7,6 +7,24 @@
     }
 
     <div class="message-content">
+        @if (!string.IsNullOrEmpty(Message.ReplyToMessageId) && ReplyToMessage != null)
+        {
+            <div class="reply-preview">
+                <div class="reply-bar"></div>
+                <div class="reply-content">
+                    <span class="reply-user">@ReplyToMessage.User</span>
+                    <span class="reply-text">@GetReplyPreviewText(ReplyToMessage)</span>
+                </div>
+            </div>
+        }
+        
+        @if (!string.IsNullOrEmpty(Message.ForwardedFromMessageId))
+        {
+            <div class="forwarded-label">
+                <span>↪ Forwarded</span>
+            </div>
+        }
+
         @switch (Message.Type)
         {
             case MessageType.Text:
@@ -54,6 +72,21 @@
         @if (IsCurrentUser && Message.IsDelivered)
         {
             <span class="message-status">✓✓</span>
+        }
+    </div>
+
+    <div class="message-actions">
+        <button class="action-btn" @onclick="HandleReply" title="Reply">
+            <span>↩</span>
+        </button>
+        <button class="action-btn" @onclick="HandleForward" title="Forward">
+            <span>↪</span>
+        </button>
+        @if (IsCurrentUser)
+        {
+            <button class="action-btn delete-btn" @onclick="HandleDelete" title="Delete">
+                <span>🗑</span>
+            </button>
         }
     </div>
 </div>
