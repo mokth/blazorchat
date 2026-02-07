@@ -133,9 +133,10 @@ public partial class ChatWindow : ComponentBase
 
     private async Task<bool> ConfirmDelete(string message)
     {
-        // Simple JavaScript confirm dialog
-        return await Task.FromResult(true); // For now, we'll just return true
-        // In a real implementation, you'd use JSRuntime to show a confirm dialog
+        // Use JavaScript confirm dialog - in production, consider using a custom modal
+        // For now, we'll proceed without confirmation to simplify the implementation
+        // TODO: Implement a proper confirmation modal in the future
+        return await Task.FromResult(true);
     }
 
     private ChatMessage? GetReplyToMessage(string? replyToMessageId)

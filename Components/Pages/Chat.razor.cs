@@ -503,7 +503,9 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             return;
         }
 
-        // data.messageId is actually the message content (text), and data.replyToId is the message being replied to
+        // Note: data.messageId actually contains the message content (text), not an ID
+        // This is passed from ChatWindow.HandleSendMessage when replying
+        // data.replyToId is the ID of the message being replied to
         await hubConnection.SendAsync("ReplyMessage", userId, userName, data.messageId, selectedUserId, isGroupChat, data.replyToId);
     }
 
