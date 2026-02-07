@@ -224,6 +224,99 @@ public class ChatHub : Hub
         await Clients.All.SendAsync("MessageRead", messageId);
     }
 
+    public async Task ReplyMessage(string senderId, string senderName, string message, string? recipientId, bool isGroup, string replyToMessageId)
+    {
+        var chatMessage = new ChatMessage
+        {
+            User = senderName,
+            SenderId = senderId,
+            RecipientId = recipientId,
+            IsGroup = isGroup,
+            Content = message,
+            Type = MessageType.Text,
+            ReplyToMessageId = replyToMessageId,
+            Timestamp = DateTime.UtcNow
+        };
+
+        await _chatService.AddMessageAsync(chatMessage);
+        if (isGroup)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
+                .SendAsync("ReceiveMessage", chatMessage);
+        }
+    }
+
+    public async Task ForwardMessage(string senderId, string senderName, string messageId, string? recipientId, bool isGroup)
+    {
+        var originalMessage = await _chatService.GetMessageByIdAsync(messageId);
+        if (originalMessage == null)
+        {
+            return;
+        }
+
+        var chatMessage = new ChatMessage
+        {
+            User = senderName,
+            SenderId = senderId,
+            RecipientId = recipientId,
+            IsGroup = isGroup,
+            Content = originalMessage.Content,
+            Type = originalMessage.Type,
+            FileName = originalMessage.FileName,
+            Duration = originalMessage.Duration,
+            FileUrl = originalMessage.FileUrl,
+            ForwardedFromMessageId = messageId,
+            Timestamp = DateTime.UtcNow
+        };
+
+        await _chatService.AddMessageAsync(chatMessage);
+        if (isGroup)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(recipientId))
+        {
+            return;
+        }
+
+        var recipient = _chatService.GetUserById(recipientId);
+        if (recipient != null)
+        {
+            await Clients.Clients(Context.ConnectionId, recipient.ConnectionId)
+                .SendAsync("ReceiveMessage", chatMessage);
+        }
+    }
+
+    public async Task DeleteMessage(string messageId, string senderId)
+    {
+        var message = await _chatService.GetMessageByIdAsync(messageId);
+        if (message != null && message.SenderId == senderId)
+        {
+            await _chatService.DeleteMessageAsync(messageId);
+            await Clients.All.SendAsync("MessageDeleted", messageId);
+        }
+    }
+
+    public async Task ClearChat(string userId, string? otherUserId, bool isGroup)
+    {
+        await _chatService.DeleteChatAsync(userId, otherUserId, isGroup);
+        await Clients.All.SendAsync("ChatCleared", userId, otherUserId, isGroup);
+    }
+
     private async Task SendUpdatedUserLists()
     {
         var users = _chatService.GetOnlineUsers();

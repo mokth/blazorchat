@@ -15,4 +15,6 @@ public class ChatMessage
     public bool IsRead { get; set; }
     public bool IsDelivered { get; set; } = true;
     public string? FileUrl { get; set; }
+    public string? ReplyToMessageId { get; set; }
+    public string? ForwardedFromMessageId { get; set; }
 }

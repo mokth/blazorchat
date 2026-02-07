@@ -3,6 +3,11 @@
     padding: 8px 12px;
     border-radius: 8px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.message-bubble:hover .message-actions {
+    opacity: 1;
 }
 
 .message-bubble.sent {
@@ -33,6 +38,48 @@
     margin: 0;
     font-size: 0.95rem;
     line-height: 1.4;
+}
+
+.reply-preview {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.reply-bar {
+    width: 3px;
+    background-color: #075E54;
+    border-radius: 2px;
+}
+
+.reply-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.reply-user {
+    font-weight: 600;
+    color: #075E54;
+    margin-bottom: 2px;
+}
+
+.reply-text {
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.forwarded-label {
+    font-size: 0.75rem;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 4px;
 }
 
 .message-image img {
@@ -106,4 +153,37 @@
 .message-status {
     font-size: 0.8rem;
     color: #4FC3F7;
+}
+
+.message-actions {
+    position: absolute;
+    top: -8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.action-btn {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-btn:hover {
+    background: #f0f0f0;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.action-btn.delete-btn:hover {
+    background: #ffebee;
+    border-color: #ef5350;
+    color: #ef5350;
 }

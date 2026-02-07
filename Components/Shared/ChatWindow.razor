@@ -5,6 +5,12 @@
             <span class="chat-mode">@ChatModeLabel</span>
         </div>
         <div class="chat-header-actions">
+            @if (CanSendMessages)
+            {
+                <button class="clear-chat-btn" @onclick="HandleClearChat" title="Clear chat">
+                    🗑 Clear Chat
+                </button>
+            }
             <button class="mobile-userlist-toggle"
                     type="button"
                     aria-label="Show contacts"
@@ -35,6 +41,17 @@
         </div>
 
         <div class="chat-content">
+            @if (ReplyToMessage != null)
+            {
+                <div class="reply-banner">
+                    <div class="reply-banner-content">
+                        <span class="reply-banner-label">Replying to @ReplyToMessage.User</span>
+                        <span class="reply-banner-text">@GetMessagePreview(ReplyToMessage)</span>
+                    </div>
+                    <button class="reply-banner-close" @onclick="CancelReply">✕</button>
+                </div>
+            }
+
             <div class="messages-container" id="messagesContainer">
                 @if (Messages.Count == 0)
                 {
@@ -61,12 +78,17 @@
                                        (message.Timestamp - lastTime.Value).TotalMinutes < 1;
 
                         bool isMine = message.SenderId == CurrentUserId;
+                        var replyToMsg = GetReplyToMessage(message.ReplyToMessageId);
 
                         <div class="@(isMine ? "msg-right" : "msg-left")">
                             <MessageBubble 
                                 Message="message" 
                                 IsCurrentUser="@isMine"
-                                IsGrouped="isGrouped" />
+                                IsGrouped="isGrouped"
+                                ReplyToMessage="replyToMsg"
+                                OnReply="HandleReply"
+                                OnForward="HandleForward"
+                                OnDelete="HandleDeleteMessage" />
                         </div>
 
                         lastUser = message.User;
@@ -85,11 +107,37 @@
             <MessageInput 
                 CanSend="CanSendMessages"
                 Placeholder='@(CanSendMessages ? "Type a message..." : "Select a contact to start chatting")'
-                OnSendMessage="OnSendMessage"
+                OnSendMessage="HandleSendMessage"
                 OnSendImage="OnSendImage"
                 OnSendVoice="OnSendVoice"
                 OnSendFile="OnSendFile"
                 OnTyping="OnTyping" />
         </div>
     </div>
+
+    @if (ShowForwardDialog)
+    {
+        <div class="modal-overlay" @onclick="CloseForwardDialog">
+            <div class="modal-dialog" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h4>Forward Message</h4>
+                    <button class="modal-close" @onclick="CloseForwardDialog">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p>Select a contact to forward this message:</p>
+                    <div class="contact-list">
+                        <button class="contact-item" @onclick="() => ForwardToGroup()">
+                            <span class="contact-name">Group Chat</span>
+                        </button>
+                        @foreach (var user in OnlineUsers.Where(u => u.Id != CurrentUserId))
+                        {
+                            <button class="contact-item" @onclick="() => ForwardToUser(user.Id)">
+                                <span class="contact-name">@user.Name</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
