@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace blazorchat.Migrations
 {
     /// <inheritdoc />
-    public partial class AddReplyAndForwardSupport : Migration
+    public partial class AddReplyForwardDeleteFeatures : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

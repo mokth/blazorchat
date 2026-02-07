@@ -12,8 +12,8 @@ using blazorchat.Data;
 namespace blazorchat.Migrations
 {
     [DbContext(typeof(ChatDbContext))]
-    [Migration("20260207105253_AddReplyAndForwardSupport")]
-    partial class AddReplyAndForwardSupport
+    [Migration("20260207105902_AddReplyForwardDeleteFeatures")]
+    partial class AddReplyForwardDeleteFeatures
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
