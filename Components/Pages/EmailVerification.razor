@@ -1,0 +1,147 @@
+@page "/verify-email"
+@rendermode InteractiveServer
+@using blazorchat.Services
+@using Microsoft.AspNetCore.WebUtilities
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Verify Email - BlazorChat</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <h2 class="text-center mb-4">Email Verification</h2>
+        
+        @if (isVerifying)
+        {
+            <div class="text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Verifying...</span>
+                </div>
+                <p>Verifying your email...</p>
+            </div>
+        }
+        else if (verificationSuccess)
+        {
+            <div class="alert alert-success">
+                <h4>✅ Email Verified Successfully!</h4>
+                <p>Your email has been verified. You can now login to your account.</p>
+            </div>
+            <div class="text-center">
+                <a href="/login" class="btn btn-primary">Go to Login</a>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-danger">
+                <h4>❌ Verification Failed</h4>
+                <p>@errorMessage</p>
+            </div>
+            <div class="text-center">
+                <a href="/register" class="btn btn-primary">Register Again</a>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+
+    .auth-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        max-width: 450px;
+        width: 100%;
+    }
+
+    h2 {
+        color: #333;
+        font-weight: 700;
+    }
+
+    h4 {
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: transform 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    p {
+        color: #666;
+    }
+</style>
+
+@code {
+    private bool isVerifying = true;
+    private bool verificationSuccess = false;
+    private string errorMessage = "Invalid or expired verification token.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+        
+        if (queryParams.TryGetValue("token", out var tokenValue))
+        {
+            var token = tokenValue.FirstOrDefault();
+            
+            if (!string.IsNullOrEmpty(token))
+            {
+                try
+                {
+                    var result = await AuthService.VerifyEmailAsync(token);
+                    
+                    if (result)
+                    {
+                        verificationSuccess = true;
+                    }
+                    else
+                    {
+                        errorMessage = "Invalid or expired verification token.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorMessage = "An error occurred during verification.";
+                }
+            }
+            else
+            {
+                errorMessage = "Verification token is missing.";
+            }
+        }
+        else
+        {
+            errorMessage = "Verification token is missing.";
+        }
+        
+        isVerifying = false;
+    }
+}

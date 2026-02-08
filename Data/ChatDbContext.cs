@@ -11,6 +11,8 @@ public class ChatDbContext : DbContext
 
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Group> Groups => Set<Group>();
+    public DbSet<GroupMember> GroupMembers => Set<GroupMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +33,29 @@ public class ChatDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<User>()
+            .HasIndex(user => user.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
             .HasIndex(user => user.LastSeen);
+
+        modelBuilder.Entity<Group>()
+            .HasKey(group => group.Id);
+
+        modelBuilder.Entity<Group>()
+            .HasIndex(group => group.Name);
+
+        modelBuilder.Entity<GroupMember>()
+            .HasKey(member => member.Id);
+
+        modelBuilder.Entity<GroupMember>()
+            .HasIndex(member => new { member.GroupId, member.UserId })
+            .IsUnique();
+
+        modelBuilder.Entity<GroupMember>()
+            .HasOne(member => member.Group)
+            .WithMany(group => group.Members)
+            .HasForeignKey(member => member.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
