@@ -1,0 +1,71 @@
+@page "/logout"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject NavigationManager NavigationManager
+@inject ProtectedSessionStorage SessionStorage
+
+<PageTitle>Logging out...</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card text-center">
+        <h2 class="mb-4">Logging out...</h2>
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Logging out...</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+
+    .auth-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        max-width: 450px;
+        width: 100%;
+    }
+
+    h2 {
+        color: #333;
+        font-weight: 700;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Clear session storage
+                await SessionStorage.DeleteAsync("userId");
+                await SessionStorage.DeleteAsync("userName");
+                await SessionStorage.DeleteAsync("userEmail");
+                
+                // Redirect to login
+                await Task.Delay(1000);
+                NavigationManager.NavigateTo("/login", true);
+            }
+            catch
+            {
+                // If there's an error, still redirect
+                NavigationManager.NavigateTo("/login", true);
+            }
+        }
+    }
+}
