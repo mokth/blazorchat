@@ -31,6 +31,9 @@ builder.Services.AddSignalR(options =>
 // Register application services
 builder.Services.AddSingleton<IChatService, ChatService>();
 builder.Services.AddScoped<FileUploadService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddHostedService<ChatCleanupService>();
 
 builder.Services.AddDbContextFactory<ChatDbContext>(options =>
