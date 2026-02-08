@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.JSInterop;
 using blazorchat.Models;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace blazorchat.Components.Pages;
 
@@ -10,6 +11,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
 {
     [Inject] public NavigationManager Navigation { get; set; } = default!;
     [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
+    [Inject] public ProtectedSessionStorage SessionStorage { get; set; } = default!;
 
     private HubConnection? hubConnection;
     private List<ChatMessage> messages = new();
@@ -25,11 +27,29 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private Dictionary<string, int> unreadCounts = new();
     private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
     private bool hasRegisteredRefreshWarning = false;
+    private bool isAuthenticated = false;
 
     protected override async Task OnInitializedAsync()
     {
         // Check for URL parameters (for WebForm integration)
-      
+        // Try to get authenticated user from session
+        try
+        {
+            var userIdResult = await SessionStorage.GetAsync<string>("userId");
+            var userNameResult = await SessionStorage.GetAsync<string>("userName");
+            
+            if (userIdResult.Success && !string.IsNullOrEmpty(userIdResult.Value) &&
+                userNameResult.Success && !string.IsNullOrEmpty(userNameResult.Value))
+            {
+                isAuthenticated = true;
+                userId = userIdResult.Value;
+                userName = userNameResult.Value;
+            }
+        }
+        catch
+        {
+            // Session storage not available yet
+        }
     }
 
     private async Task InitConnection()

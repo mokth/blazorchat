@@ -1,0 +1,89 @@
+@page "/"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject NavigationManager NavigationManager
+@inject ProtectedSessionStorage SessionStorage
+
+<PageTitle>BlazorChat</PageTitle>
+
+<div class="home-container">
+    <div class="home-card">
+        <h1 class="text-center mb-4">🗨️ BlazorChat</h1>
+        <p class="text-center mb-4">A modern real-time chat application</p>
+        
+        @if (isChecking)
+        {
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .home-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+    }
+
+    .home-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        max-width: 450px;
+        width: 100%;
+    }
+
+    h1 {
+        color: #333;
+        font-weight: 700;
+    }
+
+    p {
+        color: #666;
+        font-size: 1.1rem;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+</style>
+
+@code {
+    private bool isChecking = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var userIdResult = await SessionStorage.GetAsync<string>("userId");
+                
+                if (userIdResult.Success && !string.IsNullOrEmpty(userIdResult.Value))
+                {
+                    // User is authenticated, go to chat
+                    NavigationManager.NavigateTo("/chat");
+                }
+                else
+                {
+                    // Not authenticated, go to login
+                    NavigationManager.NavigateTo("/login");
+                }
+            }
+            catch
+            {
+                // Error checking session, go to login
+                NavigationManager.NavigateTo("/login");
+            }
+        }
+    }
+}

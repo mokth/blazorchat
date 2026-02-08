@@ -5,12 +5,26 @@
 <PageTitle>Chat</PageTitle>
 
 <div class="chat-container">
-    @if (!isJoined)
+    @if (!isAuthenticated && !isJoined)
     {
         <div class="join-screen">
             <div class="join-card">
                 <h2>Welcome to BlazorChat</h2>
+                <p class="mb-3">Please login or register to continue</p>
+                <a href="/login" class="btn btn-primary mb-2 w-100">Login</a>
+                <a href="/register" class="btn btn-outline-primary w-100">Register</a>
+                <hr class="my-4" />
+                <p class="text-muted mb-2">Or continue as guest:</p>
                 <input type="text" @bind="userName" placeholder="Enter your name" class="form-control mb-3" />
+                <button class="btn btn-secondary" @onclick="JoinChat">Join as Guest</button>
+            </div>
+        </div>
+    }
+    else if (!isJoined)
+    {
+        <div class="join-screen">
+            <div class="join-card">
+                <h2>Welcome @userName</h2>
                 <button class="btn btn-primary" @onclick="JoinChat">Join Chat</button>
             </div>
         </div>
