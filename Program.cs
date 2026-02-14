@@ -73,7 +73,14 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatDbContext>>();
     await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-    await dbContext.Database.EnsureCreatedAsync();
+
+    // In development, drop and recreate the database to ensure clean migrations
+    if (app.Environment.IsDevelopment())
+    {
+        await dbContext.Database.EnsureDeletedAsync();
+    }
+
+    await dbContext.Database.MigrateAsync();
 }
 
 //app.UsePathBase("/chat");

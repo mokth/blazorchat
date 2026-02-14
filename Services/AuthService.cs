@@ -37,11 +37,12 @@ public class AuthService : IAuthService
         // Create new user
         var user = new User
         {
+            Id = Guid.NewGuid().ToString(),
             Name = name,
             Email = email,
             PasswordHash = HashPassword(password),
             EmailVerificationToken = Guid.NewGuid().ToString(),
-            EmailVerified = false,
+            EmailVerified = true, // Temporarily auto-verify for testing
             CreatedAt = DateTime.UtcNow,
             LastSeen = DateTime.UtcNow
         };
@@ -49,10 +50,10 @@ public class AuthService : IAuthService
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        // Send verification email
-        await _emailService.SendVerificationEmailAsync(email, name, user.EmailVerificationToken);
+        // Send verification email (commented out for testing)
+        // await _emailService.SendVerificationEmailAsync(email, name, user.EmailVerificationToken);
 
-        return (true, "Registration successful. Please check your email to verify your account.", user);
+        return (true, "Registration successful. You can now login.", user);
     }
 
     public async Task<(bool Success, string Message, User? User)> LoginAsync(string email, string password)

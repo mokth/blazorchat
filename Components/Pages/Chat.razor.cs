@@ -28,6 +28,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private const string RefreshWarningMessage = "Refreshing will disconnect you. Do you want to continue?";
     private bool hasRegisteredRefreshWarning = false;
     private bool isAuthenticated = false;
+    private bool isDisposing = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,10 +91,15 @@ public partial class Chat : ComponentBase, IAsyncDisposable
 
         hubConnection.Closed += async error =>
         {
+            if (isDisposing)
+            {
+                return;
+            }
+
             Console.WriteLine($"Connection closed: {error?.Message}");
             // Try to restart after a delay
             await Task.Delay(5000);
-            if (hubConnection.State == HubConnectionState.Disconnected)
+            if (!isDisposing && hubConnection != null && hubConnection.State == HubConnectionState.Disconnected)
             {
                 try
                 {
@@ -407,6 +413,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        isDisposing = true;
         typingTimer?.Dispose();
 
         // During prerender/static rendering, JS interop isn't available. Only clear the warning
@@ -429,7 +436,14 @@ public partial class Chat : ComponentBase, IAsyncDisposable
 
         if (hubConnection is not null)
         {
-            await hubConnection.DisposeAsync();
+            try
+            {
+                await hubConnection.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error disposing hub connection: {ex.Message}");
+            }
         }
     }
 

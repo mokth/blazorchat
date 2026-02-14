@@ -1,6 +1,7 @@
 @page "/register"
 @rendermode InteractiveServer
 @using blazorchat.Services
+@using System.ComponentModel.DataAnnotations
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
 
@@ -22,29 +23,30 @@
 
         <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
             <DataAnnotationsValidator />
-            
+            <ValidationSummary class="alert alert-warning" />
+
             <div class="form-group mb-3">
                 <label for="name">Username</label>
                 <InputText id="name" class="form-control" @bind-Value="registerModel.Name" placeholder="Choose a username" />
-                <ValidationMessage For="@(() => registerModel.Name)" />
+                <ValidationMessage For="@(() => registerModel.Name)" class="text-danger" />
             </div>
 
             <div class="form-group mb-3">
                 <label for="email">Email</label>
                 <InputText id="email" type="email" class="form-control" @bind-Value="registerModel.Email" placeholder="Enter your email" />
-                <ValidationMessage For="@(() => registerModel.Email)" />
+                <ValidationMessage For="@(() => registerModel.Email)" class="text-danger" />
             </div>
 
             <div class="form-group mb-3">
                 <label for="password">Password</label>
                 <InputText id="password" type="password" class="form-control" @bind-Value="registerModel.Password" placeholder="Choose a password" />
-                <ValidationMessage For="@(() => registerModel.Password)" />
+                <ValidationMessage For="@(() => registerModel.Password)" class="text-danger" />
             </div>
 
             <div class="form-group mb-3">
                 <label for="confirmPassword">Confirm Password</label>
                 <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="registerModel.ConfirmPassword" placeholder="Confirm your password" />
-                <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
+                <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="text-danger" />
             </div>
 
             <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@isSubmitting">
@@ -152,22 +154,14 @@
 
         try
         {
-            if (registerModel.Password != registerModel.ConfirmPassword)
-            {
-                errorMessage = "Passwords do not match";
-                return;
-            }
-
             var result = await AuthService.RegisterAsync(registerModel.Name, registerModel.Email, registerModel.Password);
 
             if (result.Success)
             {
                 successMessage = result.Message;
-                // Clear form
-                registerModel = new RegisterModel();
-                // Redirect to login after 3 seconds
-                await Task.Delay(3000);
-                NavigationManager.NavigateTo("/login");
+                // Redirect to login immediately
+                await Task.Delay(500);
+                NavigationManager.NavigateTo("/login", forceLoad: true);
             }
             else
             {
@@ -176,7 +170,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = "An error occurred during registration. Please try again.";
+            errorMessage = $"An error occurred during registration: {ex.Message}";
         }
         finally
         {
@@ -199,6 +193,7 @@
         public string Password { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Please confirm your password")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 }
