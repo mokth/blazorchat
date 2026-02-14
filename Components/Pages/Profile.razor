@@ -3,7 +3,9 @@
 @using blazorchat.Services
 @using blazorchat.Models
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using Microsoft.AspNetCore.Components.Forms
 @inject IAuthService AuthService
+@inject FileUploadService FileUploadService
 @inject NavigationManager NavigationManager
 @inject ProtectedSessionStorage SessionStorage
 
@@ -47,14 +49,32 @@
                 </div>
 
                 <div class="form-group mb-3">
-                    <label for="avatarUrl">Avatar URL (optional)</label>
-                    <InputText id="avatarUrl" class="form-control" @bind-Value="profileModel.AvatarUrl" placeholder="https://example.com/avatar.jpg" />
+                    <label for="avatarUpload">Avatar Image</label>
+                    <InputFile id="avatarUpload" class="form-control" OnChange="HandleAvatarUpload" accept=".jpg,.jpeg,.png" />
+                    <small class="text-muted">Upload JPG or PNG image (max 5MB)</small>
+                    @if (isUploadingAvatar)
+                    {
+                        <div class="mt-2">
+                            <span class="text-info">⏳ Uploading...</span>
+                        </div>
+                    }
                 </div>
 
                 @if (!string.IsNullOrEmpty(profileModel.AvatarUrl))
                 {
                     <div class="avatar-preview mb-3">
-                        <img src="@profileModel.AvatarUrl" alt="Avatar Preview" />
+                        <img src="@profileModel.AvatarUrl" alt="Avatar Preview" onerror="this.src='/images/default-avatar.svg'" />
+                    </div>
+                }
+                else
+                {
+                    <div class="avatar-preview mb-3">
+                        <div class="default-avatar">
+                            @if (!string.IsNullOrEmpty(profileModel.Name))
+                            {
+                                @profileModel.Name.Substring(0, 1).ToUpper()
+                            }
+                        </div>
                     </div>
                 }
 
@@ -191,9 +211,27 @@
         border: 3px solid #667eea;
     }
 
+    .default-avatar {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background-color: #667eea;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        font-weight: 600;
+        border: 3px solid #667eea;
+    }
+
     .text-muted {
         color: #999;
         font-size: 0.875rem;
+    }
+
+    .text-info {
+        color: #17a2b8;
     }
 </style>
 
@@ -204,6 +242,7 @@
     private string successMessage = string.Empty;
     private bool isSubmitting = false;
     private bool isAuthenticated = false;
+    private bool isUploadingAvatar = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -266,6 +305,55 @@
         finally
         {
             isSubmitting = false;
+        }
+    }
+
+    private async Task HandleAvatarUpload(InputFileChangeEventArgs e)
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        isUploadingAvatar = true;
+
+        try
+        {
+            var file = e.File;
+            
+            // Validate file type
+            var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png" };
+            if (!allowedTypes.Contains(file.ContentType.ToLower()))
+            {
+                errorMessage = "Only JPG and PNG images are allowed.";
+                return;
+            }
+
+            // Validate file size (5MB max)
+            const long maxSize = 5 * 1024 * 1024;
+            if (file.Size > maxSize)
+            {
+                errorMessage = "Avatar image must be less than 5MB.";
+                return;
+            }
+
+            // Read file as base64
+            using var memoryStream = new MemoryStream();
+            await file.OpenReadStream(maxSize).CopyToAsync(memoryStream);
+            var base64Data = Convert.ToBase64String(memoryStream.ToArray());
+            var dataUrl = $"data:{file.ContentType};base64,{base64Data}";
+
+            // Upload file
+            var fileUrl = await FileUploadService.SaveFileAsync(dataUrl, file.Name, MessageType.Image);
+            
+            // Update profile model
+            profileModel.AvatarUrl = fileUrl;
+            successMessage = "Avatar uploaded successfully! Click 'Update Profile' to save.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading avatar: {ex.Message}";
+        }
+        finally
+        {
+            isUploadingAvatar = false;
         }
     }
 
