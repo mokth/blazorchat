@@ -177,4 +177,30 @@ public class ChatService : IChatService
         dbContext.ChatMessages.RemoveRange(messagesToDelete);
         await dbContext.SaveChangesAsync();
     }
+
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
+        var allUsers = await dbContext.Users
+            .AsNoTracking()
+            .OrderBy(u => u.Name)
+            .ToListAsync();
+        
+        // Mark users as online based on active sessions
+        foreach (var user in allUsers)
+        {
+            if (_userSessions.TryGetValue(user.Id, out var sessionUser))
+            {
+                user.IsOnline = true;
+                user.ConnectionId = sessionUser.ConnectionId;
+            }
+            else
+            {
+                // Check if user was active within last 5 minutes
+                user.IsOnline = (DateTime.UtcNow - user.LastSeen).TotalMinutes < 5;
+            }
+        }
+        
+        return allUsers;
+    }
 }

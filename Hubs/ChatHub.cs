@@ -340,11 +340,14 @@ public class ChatHub : Hub
 
     private async Task SendUpdatedUserLists()
     {
-        var users = _chatService.GetOnlineUsers();
-        foreach (var user in users)
+        var allUsers = await _chatService.GetAllUsersAsync();
+        var onlineUsers = _chatService.GetOnlineUsers();
+        
+        foreach (var onlineUser in onlineUsers)
         {
-            var otherUsers = users.Where(onlineUser => onlineUser.Id != user.Id).ToList();
-            await Clients.Client(user.ConnectionId).SendAsync("UpdateUserList", otherUsers);
+            // Send all users except the current user
+            var usersToSend = allUsers.Where(u => u.Id != onlineUser.Id).ToList();
+            await Clients.Client(onlineUser.ConnectionId).SendAsync("UpdateUserList", usersToSend);
         }
     }
 }

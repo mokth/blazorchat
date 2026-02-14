@@ -14,22 +14,28 @@
         @foreach (var user in Users.Where(user => user.Id != CurrentUserId))
         {
             <button class="user-item @(SelectedUserId == user.Id ? "selected" : "")" @onclick="() => OnSelectUser.InvokeAsync(user.Id)">
-                <div class="user-avatar">
-                    @user.Name.Substring(0, 1).ToUpper()
+                <div class="user-avatar @(!string.IsNullOrEmpty(user.AvatarUrl) ? "has-avatar" : "")">
+                    @if (!string.IsNullOrEmpty(user.AvatarUrl))
+                    {
+                        <img src="@user.AvatarUrl" alt="@user.Name" />
+                    }
+                    else
+                    {
+                        @user.Name.Substring(0, 1).ToUpper()
+                    }
                 </div>
                 <div class="user-info">
                     <span class="user-name">@user.Name</span>
-                    <span class="user-status">@(user.IsOnline ? "Online" : "Offline")</span>
+                    <span class="user-status @(user.IsOnline ? "status-online" : "status-offline")">
+                        <span class="status-dot"></span>
+                        @(user.IsOnline ? "Online" : "Offline")
+                    </span>
                 </div>
                 @if (UnreadCounts.TryGetValue(user.Id, out var unreadCount) && unreadCount > 0)
                 {
                     <span class="unread-badge" aria-label="@($"{unreadCount} unread messages")">
                         @unreadCount
                     </span>
-                }
-                @if (user.IsOnline)
-                {
-                    <div class="online-indicator"></div>
                 }
             </button>
         }
