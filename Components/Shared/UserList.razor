@@ -1,5 +1,12 @@
+@using blazorchat.Models
+
 <div class="user-list">
-    <h4>Chats</h4>
+    <div class="list-header">
+        <h4>Chats</h4>
+        <button class="create-group-btn" @onclick="OnCreateGroupClick" title="Create new group">
+            ➕
+        </button>
+    </div>
     <div class="users">
         <button class="user-item group-chat @(IsGroupSelected ? "selected" : "")" @onclick="OnSelectGroup">
             <div class="user-avatar group-avatar">
@@ -10,6 +17,29 @@
                 <span class="user-status">Everyone</span>
             </div>
         </button>
+
+        @if (Groups != null && Groups.Any())
+        {
+            @foreach (var group in Groups)
+            {
+                <button class="user-item @(SelectedGroupId == group.Id ? "selected" : "")" @onclick="() => OnSelectPrivateGroup.InvokeAsync(group.Id)">
+                    <div class="user-avatar group-avatar">
+                        @if (!string.IsNullOrEmpty(group.AvatarUrl))
+                        {
+                            <img src="@group.AvatarUrl" alt="@group.Name" />
+                        }
+                        else
+                        {
+                            <span>👥</span>
+                        }
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">@group.Name</span>
+                        <span class="user-status">@(group.Members?.Count ?? 0) members</span>
+                    </div>
+                </button>
+            }
+        }
 
         @foreach (var user in Users.Where(user => user.Id != CurrentUserId))
         {
