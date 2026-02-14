@@ -222,6 +222,12 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         await InitConnection();
         await JSRuntime.InvokeVoidAsync("registerRefreshWarning", RefreshWarningMessage);
         hasRegisteredRefreshWarning = true;
+        
+        // Auto-join authenticated users to chat
+        if (isAuthenticated && !isJoined)
+        {
+            await JoinChat();
+        }
     }
 
     private async Task JoinChat()

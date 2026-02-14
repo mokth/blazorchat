@@ -7,6 +7,7 @@ public class ChatMessage
     public string SenderId { get; set; } = string.Empty;
     public string? RecipientId { get; set; }
     public bool IsGroup { get; set; }
+    public string? GroupId { get; set; }  // For private groups
     public string Content { get; set; } = string.Empty;
     public MessageType Type { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;

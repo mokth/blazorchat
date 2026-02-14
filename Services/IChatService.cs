@@ -20,6 +20,7 @@ public interface IChatService
     List<User> GetOnlineUsers();
     User? GetUserByConnectionId(string connectionId);
     User? GetUserSessionById(string userId);
+    Task<List<User>> GetAllUsersAsync();
     
     Task MarkMessageAsReadAsync(string messageId);
     Task<ChatMessage?> GetMessageByIdAsync(string messageId);

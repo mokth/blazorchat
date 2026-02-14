@@ -2,6 +2,39 @@
     padding: 15px;
 }
 
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.list-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #075E54;
+}
+
+.create-group-btn {
+    background: #075E54;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.create-group-btn:hover {
+    background: #064e46;
+    transform: scale(1.1);
+}
+
 .user-list h4 {
     margin: 0 0 15px 0;
     font-size: 1rem;
@@ -35,6 +68,18 @@
     font-weight: 600;
     font-size: 1.1rem;
     margin-right: 12px;
+    overflow: hidden;
+}
+
+.user-avatar.has-avatar {
+    background-color: transparent;
+    padding: 0;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .user-info {
@@ -52,14 +97,32 @@
 .user-status {
     font-size: 0.8rem;
     color: #666;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-.online-indicator {
-    width: 10px;
-    height: 10px;
+.status-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
+    display: inline-block;
+}
+
+.status-online .status-dot {
     background-color: #4CAF50;
-    position: absolute;
-    top: 12px;
-    right: 12px;
+}
+
+.status-offline .status-dot {
+    background-color: #999;
+}
+
+.unread-badge {
+    background-color: #25D366;
+    color: white;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: auto;
 }

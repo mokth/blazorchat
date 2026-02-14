@@ -8,11 +8,13 @@ public class ChatHub : Hub
 {
     private readonly IChatService _chatService;
     private readonly FileUploadService _fileUploadService;
+    private readonly IGroupService _groupService;
 
-    public ChatHub(IChatService chatService, FileUploadService fileUploadService)
+    public ChatHub(IChatService chatService, FileUploadService fileUploadService, IGroupService groupService)
     {
         _chatService = chatService;
         _fileUploadService = fileUploadService;
+        _groupService = groupService;
     }
 
     public override async Task OnConnectedAsync()
@@ -90,9 +92,10 @@ public class ChatHub : Hub
         };
 
         await _chatService.AddMessageAsync(chatMessage);
+        
         if (isGroup)
         {
-            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            await SendGroupMessage(chatMessage, senderId, recipientId);
             return;
         }
 
@@ -128,7 +131,7 @@ public class ChatHub : Hub
         await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
-            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            await SendGroupMessage(chatMessage, senderId, recipientId);
             return;
         }
 
@@ -165,7 +168,7 @@ public class ChatHub : Hub
         await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
-            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            await SendGroupMessage(chatMessage, senderId, recipientId);
             return;
         }
 
@@ -201,7 +204,7 @@ public class ChatHub : Hub
         await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
-            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            await SendGroupMessage(chatMessage, senderId, recipientId);
             return;
         }
 
@@ -262,7 +265,7 @@ public class ChatHub : Hub
         await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
-            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            await SendGroupMessage(chatMessage, senderId, recipientId);
             return;
         }
 
@@ -305,7 +308,7 @@ public class ChatHub : Hub
         await _chatService.AddMessageAsync(chatMessage);
         if (isGroup)
         {
-            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+            await SendGroupMessage(chatMessage, senderId, recipientId);
             return;
         }
 
@@ -340,11 +343,56 @@ public class ChatHub : Hub
 
     private async Task SendUpdatedUserLists()
     {
-        var users = _chatService.GetOnlineUsers();
-        foreach (var user in users)
+        var allUsers = await _chatService.GetAllUsersAsync();
+        var onlineUsers = _chatService.GetOnlineUsers();
+        
+        foreach (var onlineUser in onlineUsers)
         {
-            var otherUsers = users.Where(onlineUser => onlineUser.Id != user.Id).ToList();
-            await Clients.Client(user.ConnectionId).SendAsync("UpdateUserList", otherUsers);
+            // Send all users except the current user
+            var usersToSend = allUsers.Where(u => u.Id != onlineUser.Id).ToList();
+            await Clients.Client(onlineUser.ConnectionId).SendAsync("UpdateUserList", usersToSend);
         }
+    }
+
+    private async Task<bool> SendGroupMessage(ChatMessage chatMessage, string senderId, string? recipientId)
+    {
+        // If recipientId is provided for a group message, treat it as a private group (GroupId)
+        if (!string.IsNullOrWhiteSpace(recipientId))
+        {
+            // Private group message - validate membership and send only to members
+            var groupId = recipientId;
+            chatMessage.GroupId = groupId;
+            
+            // Validate sender is a member
+            if (!await _groupService.IsUserMemberAsync(groupId, senderId))
+            {
+                return false; // Sender is not a member, reject message
+            }
+            
+            // Get all group members
+            var members = await _groupService.GetGroupMembersAsync(groupId);
+            var connectionIds = new List<string>();
+            
+            foreach (var member in members)
+            {
+                var sessionUser = _chatService.GetUserSessionById(member.Id);
+                if (sessionUser != null)
+                {
+                    connectionIds.Add(sessionUser.ConnectionId);
+                }
+            }
+            
+            // Send to all online group members
+            if (connectionIds.Any())
+            {
+                await Clients.Clients(connectionIds).SendAsync("ReceiveMessage", chatMessage);
+            }
+        }
+        else
+        {
+            // Global group chat - send to all
+            await Clients.All.SendAsync("ReceiveMessage", chatMessage);
+        }
+        return true;
     }
 }
