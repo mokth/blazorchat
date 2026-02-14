@@ -74,12 +74,7 @@ using (var scope = app.Services.CreateScope())
     var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ChatDbContext>>();
     await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-    // In development, drop and recreate the database to ensure clean migrations
-    if (app.Environment.IsDevelopment())
-    {
-        await dbContext.Database.EnsureDeletedAsync();
-    }
-
+    // Apply any pending migrations
     await dbContext.Database.MigrateAsync();
 }
 

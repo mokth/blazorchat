@@ -3,11 +3,11 @@
     "blazorchat": {
       "commandName": "Project",
       "launchBrowser": true,
-      "launchUrl": "chat",
+      "launchUrl": "register",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:59929;http://localhost:59930"
+      "applicationUrl": "https://localhost:5001;http://localhost:5000"
     }
   }
 }
