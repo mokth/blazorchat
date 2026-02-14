@@ -1,5 +1,12 @@
+@using blazorchat.Models
+
 <div class="user-list">
-    <h4>Chats</h4>
+    <div class="list-header">
+        <h4>Chats</h4>
+        <button class="create-group-btn" @onclick="OnCreateGroupClick" title="Create new group">
+            ➕
+        </button>
+    </div>
     <div class="users">
         <button class="user-item group-chat @(IsGroupSelected ? "selected" : "")" @onclick="OnSelectGroup">
             <div class="user-avatar group-avatar">
@@ -11,25 +18,54 @@
             </div>
         </button>
 
+        @if (Groups != null && Groups.Any())
+        {
+            @foreach (var group in Groups)
+            {
+                <button class="user-item @(SelectedGroupId == group.Id ? "selected" : "")" @onclick="() => OnSelectPrivateGroup.InvokeAsync(group.Id)">
+                    <div class="user-avatar group-avatar">
+                        @if (!string.IsNullOrEmpty(group.AvatarUrl))
+                        {
+                            <img src="@group.AvatarUrl" alt="@group.Name" />
+                        }
+                        else
+                        {
+                            <span>👥</span>
+                        }
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">@group.Name</span>
+                        <span class="user-status">@(group.Members?.Count ?? 0) members</span>
+                    </div>
+                </button>
+            }
+        }
+
         @foreach (var user in Users.Where(user => user.Id != CurrentUserId))
         {
             <button class="user-item @(SelectedUserId == user.Id ? "selected" : "")" @onclick="() => OnSelectUser.InvokeAsync(user.Id)">
-                <div class="user-avatar">
-                    @user.Name.Substring(0, 1).ToUpper()
+                <div class="user-avatar @(!string.IsNullOrEmpty(user.AvatarUrl) ? "has-avatar" : "")">
+                    @if (!string.IsNullOrEmpty(user.AvatarUrl))
+                    {
+                        <img src="@user.AvatarUrl" alt="@user.Name" />
+                    }
+                    else
+                    {
+                        @user.Name.Substring(0, 1).ToUpper()
+                    }
                 </div>
                 <div class="user-info">
                     <span class="user-name">@user.Name</span>
-                    <span class="user-status">@(user.IsOnline ? "Online" : "Offline")</span>
+                    <span class="user-status @(user.IsOnline ? "status-online" : "status-offline")">
+                        <span class="status-dot"></span>
+                        @(user.IsOnline ? "Online" : "Offline")
+                    </span>
                 </div>
                 @if (UnreadCounts.TryGetValue(user.Id, out var unreadCount) && unreadCount > 0)
                 {
                     <span class="unread-badge" aria-label="@($"{unreadCount} unread messages")">
                         @unreadCount
                     </span>
-                }
-                @if (user.IsOnline)
-                {
-                    <div class="online-indicator"></div>
                 }
             </button>
         }

@@ -1,0 +1,360 @@
+@using blazorchat.Models
+@using blazorchat.Services
+@inject IGroupService GroupService
+
+@if (IsVisible)
+{
+    <div class="modal-overlay" @onclick="HandleOverlayClick">
+        <div class="modal-dialog" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Create New Group</h3>
+                <button class="close-btn" @onclick="OnCancel">✕</button>
+            </div>
+
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+
+                <div class="form-group mb-3">
+                    <label for="groupName">Group Name</label>
+                    <input type="text" id="groupName" class="form-control" @bind="groupName" placeholder="Enter group name" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="groupDescription">Description (optional)</label>
+                    <textarea id="groupDescription" class="form-control" @bind="groupDescription" placeholder="Enter group description" rows="2"></textarea>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label>Select Members</label>
+                    <div class="members-list">
+                        @foreach (var user in AvailableUsers)
+                        {
+                            <div class="member-item">
+                                <input type="checkbox" 
+                                       id="user-@user.Id" 
+                                       @onchange="@((e) => ToggleMember(user.Id, e))" />
+                                <label for="user-@user.Id">
+                                    <div class="user-avatar-small">
+                                        @if (!string.IsNullOrEmpty(user.AvatarUrl))
+                                        {
+                                            <img src="@user.AvatarUrl" alt="@user.Name" />
+                                        }
+                                        else
+                                        {
+                                            @user.Name.Substring(0, 1).ToUpper()
+                                        }
+                                    </div>
+                                    <span>@user.Name</span>
+                                </label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="selected-count">
+                    @selectedMemberIds.Count member(s) selected
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="OnCancel">Cancel</button>
+                <button class="btn btn-primary" @onclick="HandleCreateGroup" disabled="@isCreating">
+                    @if (isCreating)
+                    {
+                        <span>Creating...</span>
+                    }
+                    else
+                    {
+                        <span>Create Group</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-dialog {
+        background: white;
+        border-radius: 10px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #333;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-btn:hover {
+        color: #333;
+    }
+
+    .modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-control {
+        width: 100%;
+        border-radius: 8px;
+        border: 2px solid #e0e0e0;
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .members-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    .member-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border-radius: 5px;
+        margin-bottom: 5px;
+    }
+
+    .member-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    .member-item input[type="checkbox"] {
+        margin-right: 10px;
+        cursor: pointer;
+    }
+
+    .member-item label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        margin: 0;
+        flex: 1;
+        font-weight: normal;
+    }
+
+    .user-avatar-small {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: #667eea;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-right: 10px;
+        overflow: hidden;
+    }
+
+    .user-avatar-small img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .selected-count {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    .modal-footer {
+        padding: 20px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        font-size: 0.95rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+
+    .alert {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public List<User> AvailableUsers { get; set; } = new();
+    [Parameter] public string CurrentUserId { get; set; } = string.Empty;
+    [Parameter] public EventCallback<Group> OnGroupCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string groupName = string.Empty;
+    private string groupDescription = string.Empty;
+    private HashSet<string> selectedMemberIds = new();
+    private string errorMessage = string.Empty;
+    private bool isCreating = false;
+
+    private void ToggleMember(string userId, ChangeEventArgs e)
+    {
+        var isChecked = (bool)(e.Value ?? false);
+        if (isChecked)
+        {
+            selectedMemberIds.Add(userId);
+        }
+        else
+        {
+            selectedMemberIds.Remove(userId);
+        }
+    }
+
+    private async Task HandleCreateGroup()
+    {
+        errorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(groupName))
+        {
+            errorMessage = "Group name is required.";
+            return;
+        }
+
+        if (selectedMemberIds.Count == 0)
+        {
+            errorMessage = "Please select at least one member.";
+            return;
+        }
+
+        isCreating = true;
+
+        try
+        {
+            var result = await GroupService.CreateGroupAsync(groupName, groupDescription, CurrentUserId);
+
+            if (result.Success && result.Group != null)
+            {
+                // Add selected members to the group
+                foreach (var memberId in selectedMemberIds)
+                {
+                    await GroupService.AddMemberAsync(result.Group.Id, memberId);
+                }
+
+                // Reset form
+                groupName = string.Empty;
+                groupDescription = string.Empty;
+                selectedMemberIds.Clear();
+
+                await OnGroupCreated.InvokeAsync(result.Group);
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating group: {ex.Message}";
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+    private async Task HandleOverlayClick()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}
