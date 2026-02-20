@@ -32,12 +32,16 @@
                 </button>
             </div>
             <UserList Users="OnlineUsers"
+                      Groups="Groups"
                       CurrentUserId="CurrentUserId"
                       SelectedUserId="SelectedUserId"
+                      SelectedGroupId="SelectedGroupId"
                       IsGroupSelected="IsGroupChat"
                       UnreadCounts="UnreadCounts"
                       OnSelectUser="HandleSelectUser"
-                      OnSelectGroup="HandleSelectGroup" />
+                      OnSelectGroup="HandleSelectGroup"
+                      OnSelectPrivateGroup="OnSelectPrivateGroup"
+                      OnCreateGroupClick="OnCreateGroupClick" />
         </div>
 
         <div class="chat-content">

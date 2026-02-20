@@ -244,8 +244,10 @@
     private bool isAuthenticated = false;
     private bool isUploadingAvatar = false;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender) return;
+
         try
         {
             var userIdResult = await SessionStorage.GetAsync<string>("userId");
@@ -270,6 +272,7 @@
         {
             NavigationManager.NavigateTo("/login");
         }
+        StateHasChanged();
     }
 
     private async Task HandleUpdateProfile()
