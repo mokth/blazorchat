@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.JSInterop;
 using blazorchat.Models;
+using blazorchat.Services;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace blazorchat.Components.Pages;
@@ -12,16 +13,19 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     [Inject] public NavigationManager Navigation { get; set; } = default!;
     [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
     [Inject] public ProtectedSessionStorage SessionStorage { get; set; } = default!;
+    [Inject] public IGroupService GroupService { get; set; } = default!;
 
     private HubConnection? hubConnection;
     private List<ChatMessage> messages = new();
     private List<User> onlineUsers = new();
+    private List<Group> groups = new();
     private string userName = "";
     private string userId = "";
     private bool isJoined = false;
     private string typingUser = "";
     private System.Threading.Timer? typingTimer;
     private string? selectedUserId;
+    private string? selectedGroupId;
     private string selectedChatName = "Select a contact";
     private bool isGroupChat = false;
     private Dictionary<string, int> unreadCounts = new();
@@ -29,6 +33,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private bool hasRegisteredRefreshWarning = false;
     private bool isAuthenticated = false;
     private bool isDisposing = false;
+    private bool showCreateGroupModal = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -227,6 +232,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         if (isAuthenticated && !isJoined)
         {
             await JoinChat();
+            await LoadGroups();
         }
     }
 
@@ -237,6 +243,48 @@ public partial class Chat : ComponentBase, IAsyncDisposable
             isJoined = true;
             await hubConnection.SendAsync("UserConnected", userName);
         }
+    }
+
+    private async Task LoadGroups()
+    {
+        if (!string.IsNullOrEmpty(userId))
+        {
+            groups = await GroupService.GetUserGroupsAsync(userId);
+        }
+    }
+
+    private void ShowCreateGroupModal()
+    {
+        showCreateGroupModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseCreateGroupModal()
+    {
+        showCreateGroupModal = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleGroupCreated(Group group)
+    {
+        showCreateGroupModal = false;
+        await LoadGroups();
+        StateHasChanged();
+    }
+
+    private async Task SelectPrivateGroup(string groupId)
+    {
+        var group = groups.FirstOrDefault(g => g.Id == groupId);
+        if (group is null) return;
+
+        selectedGroupId = group.Id;
+        selectedUserId = null;
+        selectedChatName = group.Name;
+        isGroupChat = true;
+        typingUser = "";
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(100);
+        await JSRuntime.InvokeVoidAsync("scrollToBottom");
     }
 
     private async Task SendMessage(string message)
@@ -309,6 +357,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         }
 
         selectedUserId = selectedUser.Id;
+        selectedGroupId = null;
         selectedChatName = selectedUser.Name;
         isGroupChat = false;
         typingUser = "";
@@ -321,6 +370,7 @@ public partial class Chat : ComponentBase, IAsyncDisposable
     private async Task SelectGroup()
     {
         selectedUserId = null;
+        selectedGroupId = null;
         selectedChatName = "Group Chat";
         isGroupChat = true;
         typingUser = "";
@@ -405,15 +455,28 @@ public partial class Chat : ComponentBase, IAsyncDisposable
         }
     }
 
-    private List<ChatMessage> filteredMessages =>
-        isGroupChat
-            ? messages.Where(message => message.IsGroup).ToList()
-            : messages
-                .Where(message => !message.IsGroup
-                    && !string.IsNullOrWhiteSpace(selectedUserId)
-                    && ((message.SenderId == userId && message.RecipientId == selectedUserId)
-                        || (message.SenderId == selectedUserId && message.RecipientId == userId)))
-                .ToList();
+    private List<ChatMessage> filteredMessages
+    {
+        get
+        {
+            if (!isGroupChat)
+            {
+                return messages
+                    .Where(message => !message.IsGroup
+                        && !string.IsNullOrWhiteSpace(selectedUserId)
+                        && ((message.SenderId == userId && message.RecipientId == selectedUserId)
+                            || (message.SenderId == selectedUserId && message.RecipientId == userId)))
+                    .ToList();
+            }
+
+            if (selectedGroupId != null)
+            {
+                return messages.Where(message => message.GroupId == selectedGroupId).ToList();
+            }
+
+            return messages.Where(message => message.IsGroup && message.GroupId == null).ToList();
+        }
+    }
 
     private bool canSendMessages => isGroupChat || !string.IsNullOrWhiteSpace(selectedUserId);
 

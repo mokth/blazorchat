@@ -1,6 +1,8 @@
 @page "/chat"
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.SignalR.Client
+@using blazorchat.Models
+@using blazorchat.Components.Shared
 
 <PageTitle>Chat</PageTitle>
 
@@ -72,14 +74,18 @@
             CurrentUser="@userName"
             CurrentUserId="@userId"
             OnlineUsers="onlineUsers"
+            Groups="groups"
             TypingUser="typingUser"
             SelectedUserId="selectedUserId"
+            SelectedGroupId="selectedGroupId"
             SelectedChatName="@selectedChatName"
             IsGroupChat="isGroupChat"
             CanSendMessages="canSendMessages"
             UnreadCounts="unreadCounts"
             OnSelectUser="EventCallback.Factory.Create<string>(this, SelectUser)"
             OnSelectGroup="EventCallback.Factory.Create(this, SelectGroup)"
+            OnSelectPrivateGroup="EventCallback.Factory.Create<string>(this, SelectPrivateGroup)"
+            OnCreateGroupClick="EventCallback.Factory.Create(this, ShowCreateGroupModal)"
             OnSendMessage="EventCallback.Factory.Create<string>(this, SendMessage)"
             OnSendImage="EventCallback.Factory.Create<(string, string)>(this, SendImage)"
             OnSendVoice="EventCallback.Factory.Create<(string, int)>(this, SendVoiceMessage)"
@@ -89,6 +95,13 @@
             OnForwardMessage="EventCallback.Factory.Create<(string, string?, bool)>(this, HandleForwardMessage)"
             OnDeleteMessage="EventCallback.Factory.Create<string>(this, HandleDeleteMessage)"
             OnClearChat="EventCallback.Factory.Create(this, HandleClearChat)" />
+
+        <CreateGroupModal
+            IsVisible="showCreateGroupModal"
+            AvailableUsers="onlineUsers"
+            CurrentUserId="@userId"
+            OnGroupCreated="EventCallback.Factory.Create<Group>(this, HandleGroupCreated)"
+            OnCancel="EventCallback.Factory.Create(this, CloseCreateGroupModal)" />
     }
 </div>
 

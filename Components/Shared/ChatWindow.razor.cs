@@ -9,14 +9,18 @@ public partial class ChatWindow : ComponentBase
     [Parameter] public string CurrentUser { get; set; } = "";
     [Parameter] public string CurrentUserId { get; set; } = "";
     [Parameter] public List<User> OnlineUsers { get; set; } = new();
+    [Parameter] public List<Group> Groups { get; set; } = new();
     [Parameter] public string TypingUser { get; set; } = "";
     [Parameter] public string? SelectedUserId { get; set; }
+    [Parameter] public string? SelectedGroupId { get; set; }
     [Parameter] public string SelectedChatName { get; set; } = "Select a contact";
     [Parameter] public bool IsGroupChat { get; set; }
     [Parameter] public bool CanSendMessages { get; set; }
     [Parameter] public Dictionary<string, int> UnreadCounts { get; set; } = new();
     [Parameter] public EventCallback<string> OnSelectUser { get; set; }
     [Parameter] public EventCallback OnSelectGroup { get; set; }
+    [Parameter] public EventCallback<string> OnSelectPrivateGroup { get; set; }
+    [Parameter] public EventCallback OnCreateGroupClick { get; set; }
     [Parameter] public EventCallback<string> OnSendMessage { get; set; }
     [Parameter] public EventCallback<(string imageData, string fileName)> OnSendImage { get; set; }
     [Parameter] public EventCallback<(string audioData, int duration)> OnSendVoice { get; set; }
